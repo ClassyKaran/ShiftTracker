@@ -14,3 +14,198 @@ git push -u origin main
 git remote add origin https://github.com/ClassyKaran/ShiftTracker.git
 git branch -M main
 git push -u origin main
+
+
+
+
+Build a complete working SHIFT TRACK system using the exact requirements below.  
+
+The project is a real-time employee shift tracking tool:
+Employee Login → Session Start → Real-Time Online/Offline/Disconnected tracking → Logout → Session Saved.
+Admin sees the live status of every employee.
+
+-----------------------------------------------------
+🟦 FRONTEND REQUIREMENTS (ReactJS)
+-----------------------------------------------------
+
+I ALREADY HAVE A REACT SETUP.  
+DO NOT create a new React project.  
+Generate only the required files/folders and code inside `src/`.
+
+### ✔️ Allowed Frontend Libraries
+- ReactJS (existing setup)
+- Bootstrap 5 (UI only)
+- React Query
+- Axios
+- Socket.io-client
+- React Toastify
+- React Router DOM v6
+- Day.js (time formatting)
+- Recharts (only import when needed)
+
+### ✔️ Frontend Folder Structure (Create these)
+src/
+  api/
+    authApi.js
+    sessionApi.js
+  components/
+    Header.jsx
+    Timer.jsx
+    UserCard.jsx
+  pages/
+    Login.jsx
+    EmployeeHome.jsx
+    Dashboard.jsx
+  context/
+    socket.js
+  hooks/
+    useAuth.js
+    useSession.js
+  utils/
+    time.js
+  App.js
+  index.js
+
+### ✔️ FRONTEND PAGE LOGIC
+
+#### Login Page
+- Login using: employeeId + password
+- Call backend API
+- Save JWT token
+- Redirect based on role:
+  - employee → EmployeeHome
+  - admin → Dashboard
+- Toastify for alerts
+
+#### EmployeeHome Page
+- On mount: start a session by calling backend
+- Connect to Socket.io
+- Show real-time timer (Timer component)
+- Logout button → end session
+- On logout → navigate to Login
+
+#### Dashboard Page (Admin)
+Show ALL employees in a bootstrap table:
+Columns:
+- Name
+- Employee ID
+- Login Time
+- Active Time (live timer)
+- Status (online/offline/disconnected)
+
+Real-time updates using Socket.io:
+Events:
+- user_online
+- user_offline
+- user_disconnected
+- users_list_update
+
+### ✔️ React Query Global States
+- user
+- token
+- activeSession
+- activeUsers (socket)
+
+-----------------------------------------------------
+🟩 BACKEND REQUIREMENTS (Node + Express)
+-----------------------------------------------------
+
+### ✔️ Backend Allowed Libraries
+- express
+- mongoose
+- cors
+- dotenv
+- jsonwebtoken
+- bcrypt
+- socket.io
+
+
+
+### ✔️ Backend Folder Structure
+src/
+  config/db.js
+  controllers/authController.js
+  controllers/sessionController.js
+  models/User.js
+  models/Session.js
+  routes/authRoutes.js
+  routes/sessionRoutes.js
+  middleware/authMiddleware.js
+  socket/socketHandler.js
+  server.js
+
+### ✔️ MongoDB Schemas
+
+User.js
+- name: String
+- employeeId: String (unique)
+- password: String (hashed)
+- role: "employee" | "admin"
+- isActive: Boolean (default false)
+
+Session.js
+- userId: ObjectId
+- loginTime: Date
+- logoutTime: Date
+- totalDuration: Number
+- status: "online" | "offline" | "disconnected"
+- ip: String
+- createdAt: Date
+
+### ✔️ Backend Authentication (JWT)
+- POST /api/auth/login
+- POST /api/auth/add-user (admin only)
+- GET /api/auth/me
+
+### ✔️ Shift Session Logic (Required Only)
+- POST /api/session/start → Create session, mark user online
+- POST /api/session/end → Logout, calculate duration
+- GET /api/session/active → Return active users
+- GET /api/session/logs → Return session logs
+
+### ✔️ Socket.io Server Events
+Emit these events:
+- user_online
+- user_offline
+- user_disconnected
+- users_list_update
+
+### ✔️ Disconnect Handling
+When socket disconnects:
+- mark employee as disconnected
+- update session status
+- notify admin dashboard
+
+-----------------------------------------------------
+🟧 ENV VARIABLES
+-----------------------------------------------------
+
+Backend (.env)
+PORT=
+MONGO_URI=
+JWT_SECRET=
+CLIENT_URL=
+
+Frontend (.env)
+REACT_APP_API_URL=
+REACT_APP_SOCKET_URL=
+
+-----------------------------------------------------
+🟦 DEPLOYMENT TARGETS
+-----------------------------------------------------
+Frontend → Netlify  
+Backend → Render  
+MongoDB → MongoDB Atlas  
+
+
+-----------------------------------------------------
+→ Generate COMPLETE code for ALL backend and frontend files listed above.  
+→ Use Bootstrap for 100% of the UI
+→ Follow the exact folder structure.  
+→ Implement all APIs, sockets, real-time updates, and routing.    
+→ Keep everything clean and minimal.  
+→ Do not add any other libraries.  
+→ Final project must run on first try.
+
+
+
