@@ -9,7 +9,8 @@ import sessionRoutes from './routes/sessionRoutes.js';
 import socketHandler from './socket/socketHandler.js';
 
 const app = express();
-app.use(cors());
+const CORS_ORIGIN = process.env.CLIENT_URL;
+app.use(cors({ origin: CORS_ORIGIN, credentials: true, methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
