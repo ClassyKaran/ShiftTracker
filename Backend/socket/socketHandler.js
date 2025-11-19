@@ -29,7 +29,12 @@ export default (io) => {
       // notify all clients (admins will show list)
       io.emit('user_online', { _id: user._id, name: user.name, employeeId: user.employeeId, loginTime: session.loginTime, status: 'online' });
       const sessions = await Session.find({ status: { $in: ['online', 'disconnected'] } }).populate('userId', 'name employeeId');
-      const users = sessions.map(s => ({ _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, status: s.status }));
+      const users = sessions
+        .filter(s => s.userId) // ignore sessions whose user was deleted or not found
+        .map(s => {
+          const total = s.status === 'online' ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000) : (s.totalDuration || 0);
+          return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total) };
+        });
       io.emit('users_list_update', { users });
 
       socket.on('disconnect', async (reason) => {
@@ -46,7 +51,12 @@ export default (io) => {
           }
           io.emit('user_disconnected', { _id: user._id, name: user.name, employeeId: user.employeeId, status: 'disconnected' });
           const sessions2 = await Session.find({ status: { $in: ['online', 'disconnected'] } }).populate('userId', 'name employeeId');
-          const users2 = sessions2.map(s => ({ _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, status: s.status }));
+          const users2 = sessions2
+            .filter(s => s.userId)
+            .map(s => {
+              const total = s.status === 'online' ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000) : (s.totalDuration || 0);
+              return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total) };
+            });
           io.emit('users_list_update', { users: users2 });
         } catch (e) {
           console.error('socket disconnect handler error', e);

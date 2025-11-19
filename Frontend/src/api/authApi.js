@@ -16,4 +16,10 @@ export const addUser = (data, token) =>
     headers: { Authorization: `Bearer ${token}` },
   }).then((r) => r.data);
 
+export const updateUser = (id, data, token) =>
+  API.put(`/auth/user/${id}`, data, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
+
+export const deleteUser = (id, token) =>
+  API.delete(`/auth/user/${id}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
+
 export default API;

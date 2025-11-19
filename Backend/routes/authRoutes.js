@@ -63,4 +63,45 @@ router.get("/me", auth, async (req, res) => {
   return res.json({ user: req.user });
 });
 
+// update user (admin only)
+router.put('/user/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, employeeId, role, password } = req.body;
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (employeeId && employeeId !== user.employeeId) {
+      const exists = await User.findOne({ employeeId });
+      if (exists) return res.status(400).json({ message: 'Employee ID exists' });
+      user.employeeId = employeeId;
+    }
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (password) user.password = await bcrypt.hash(password, 10);
+    await user.save();
+    return res.json({ user: { id: user._id, name: user.name, employeeId: user.employeeId, role: user.role } });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Failed to update user' });
+  }
+});
+
+// delete user (admin only)
+router.delete('/user/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    await User.findByIdAndDelete(id);
+
+    return res.json({ message: 'User deleted' });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Failed to delete user' });
+  }
+});
+
+
 export default router;
