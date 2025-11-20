@@ -25,7 +25,7 @@ function App() {
   }, []);
 
   return (
-    <div className="container py-3">
+    <>
       <Header />
       <Routes>
         <Route path="/" 
@@ -36,7 +36,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
       <ToastContainer position="top-right" />
-    </div>
+    </>
   );
 }
 

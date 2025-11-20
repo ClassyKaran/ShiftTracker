@@ -11,7 +11,7 @@ export default function Header() {
   const avatar = user ? (user.name ? user.name.charAt(0).toUpperCase() : '?') : '?';
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-light mb-3">
+    <nav className="navbar navbar-expand-lg navbar-light bg-light ">
       <div className="container-fluid">
         <Link className="navbar-brand d-flex align-items-center" to="/">
           <img src="/kavyashift.png" alt="logo" width="40" className='me-2' />

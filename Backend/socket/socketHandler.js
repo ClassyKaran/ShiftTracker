@@ -5,6 +5,72 @@ import Session from '../models/Session.js';
 export default (io) => {
   const onlineMap = new Map(); // userId -> socketId
 
+  // periodic broadcast to ensure dashboards receive updates even when heartbeats are sparse
+  if (!io._shiftBroadcastInterval) {
+    const broadcastLatest = async () => {
+      try {
+        const pipeline = [
+          { $match: { status: { $in: ['online', 'disconnected', 'offline'] } } },
+          { $sort: { createdAt: -1 } },
+          { $group: {
+            _id: '$userId',
+            sessionId: { $first: '$_id' },
+            loginTime: { $first: '$loginTime' },
+            logoutTime: { $first: '$logoutTime' },
+            status: { $first: '$status' },
+            totalDuration: { $first: '$totalDuration' },
+            device: { $first: '$device' },
+            location: { $first: '$location' },
+            locationName: { $first: '$locationName' },
+            ip: { $first: '$ip' },
+            lastActivity: { $first: '$lastActivity' },
+            isIdle: { $first: '$isIdle' },
+          } },
+          { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+          { $unwind: '$user' },
+          { $project: {
+            _id: '$user._id',
+            name: '$user.name',
+            employeeId: '$user.employeeId',
+            loginTime: '$loginTime',
+            logoutTime: '$logoutTime',
+            status: '$status',
+            totalDuration: '$totalDuration',
+            device: '$device',
+            location: '$location',
+            locationName: '$locationName',
+            ip: '$ip',
+            lastActivity: '$lastActivity',
+            isIdle: '$isIdle',
+          } },
+          { $sort: { name: 1 } },
+        ];
+        const docs = await Session.aggregate(pipeline);
+        const usersOut = docs.map(s => ({
+          _id: s._id,
+          name: s.name,
+          employeeId: s.employeeId,
+          loginTime: s.loginTime,
+          logoutTime: s.logoutTime || null,
+          status: s.status,
+          totalDuration: s.status === 'online' ? Math.floor(Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000)) : (s.totalDuration || 0),
+          device: s.device || null,
+          location: s.location || null,
+          locationName: s.locationName || null,
+          ip: s.ip || null,
+          lastActivity: s.lastActivity || null,
+          isIdle: s.isIdle || false,
+        }));
+        const counts = { online: usersOut.filter(u => u.status === 'online').length, offline: usersOut.filter(u => u.status === 'offline').length, disconnected: usersOut.filter(u => u.status === 'disconnected').length, total: usersOut.length };
+        io.emit('users_list_update', { users: usersOut, counts, emittedAt: new Date() });
+      } catch (e) {
+        console.error('broadcastLatest error', e);
+      }
+    };
+
+    io._shiftBroadcastInterval = setInterval(broadcastLatest, 15000); // every 15s
+  }
+
   io.on('connection', async (socket) => {
     try {
       const token = socket.handshake.auth && socket.handshake.auth.token;
@@ -26,16 +92,74 @@ export default (io) => {
         await session.save();
       }
 
-      // notify all clients (admins will show list)
+      // notify connected clients
       io.emit('user_online', { _id: user._id, name: user.name, employeeId: user.employeeId, loginTime: session.loginTime, status: 'online' });
-      const sessions = await Session.find({ status: { $in: ['online', 'disconnected'] } }).populate('userId', 'name employeeId');
-      const users = sessions
-        .filter(s => s.userId) // ignore sessions whose user was deleted or not found
-        .map(s => {
-          const total = s.status === 'online' ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000) : (s.totalDuration || 0);
-          return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total) };
-        });
-      io.emit('users_list_update', { users });
+
+      // helper to build latest-per-user payload
+      const buildUsersPayload = async () => {
+        try {
+          const pipeline = [
+            { $match: { status: { $in: ['online', 'disconnected', 'offline'] } } },
+            { $sort: { createdAt: -1 } },
+            { $group: {
+              _id: '$userId',
+              sessionId: { $first: '$_id' },
+              loginTime: { $first: '$loginTime' },
+              logoutTime: { $first: '$logoutTime' },
+              status: { $first: '$status' },
+              totalDuration: { $first: '$totalDuration' },
+              device: { $first: '$device' },
+              location: { $first: '$location' },
+              locationName: { $first: '$locationName' },
+              ip: { $first: '$ip' },
+              lastActivity: { $first: '$lastActivity' },
+              isIdle: { $first: '$isIdle' },
+            } },
+            { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+            { $unwind: '$user' },
+            { $project: {
+              _id: '$user._id',
+              name: '$user.name',
+              employeeId: '$user.employeeId',
+              loginTime: '$loginTime',
+              logoutTime: '$logoutTime',
+              status: '$status',
+              totalDuration: '$totalDuration',
+              device: '$device',
+              location: '$location',
+              locationName: '$locationName',
+              ip: '$ip',
+              lastActivity: '$lastActivity',
+              isIdle: '$isIdle',
+            } },
+            { $sort: { name: 1 } },
+          ];
+          const docs = await Session.aggregate(pipeline);
+          const usersOut = docs.map(s => ({
+            _id: s._id,
+            name: s.name,
+            employeeId: s.employeeId,
+            loginTime: s.loginTime,
+            logoutTime: s.logoutTime || null,
+            status: s.status,
+            totalDuration: s.status === 'online' ? Math.floor(Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000)) : (s.totalDuration || 0),
+            device: s.device || null,
+            location: s.location || null,
+            locationName: s.locationName || null,
+            ip: s.ip || null,
+            lastActivity: s.lastActivity || null,
+            isIdle: s.isIdle || false,
+          }));
+          const counts = { online: usersOut.filter(u => u.status === 'online').length, offline: usersOut.filter(u => u.status === 'offline').length, disconnected: usersOut.filter(u => u.status === 'disconnected').length, total: usersOut.length };
+          return { users: usersOut, counts };
+        } catch (e) {
+          console.error('buildUsersPayload error', e);
+          return { users: [], counts: { online: 0, offline: 0, disconnected: 0, total: 0 } };
+        }
+      };
+
+      const pld = await buildUsersPayload();
+      io.emit('users_list_update', { users: pld.users, counts: pld.counts, emittedAt: new Date() });
 
       socket.on('disconnect', async (reason) => {
         try {
@@ -50,16 +174,32 @@ export default (io) => {
             await sess.save();
           }
           io.emit('user_disconnected', { _id: user._id, name: user.name, employeeId: user.employeeId, status: 'disconnected' });
-          const sessions2 = await Session.find({ status: { $in: ['online', 'disconnected'] } }).populate('userId', 'name employeeId');
+          const sessions2 = await Session.find({ status: { $in: ['online', 'disconnected', 'offline'] } }).populate('userId', 'name employeeId');
           const users2 = sessions2
             .filter(s => s.userId)
             .map(s => {
               const total = s.status === 'online' ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000) : (s.totalDuration || 0);
-              return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total) };
+              return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total), device: s.device || null, location: s.location || null, ip: s.ip || null, lastActivity: s.lastActivity || null, isIdle: s.isIdle || false };
             });
-          io.emit('users_list_update', { users: users2 });
+          const counts2 = { online: users2.filter(u => u.status === 'online').length, offline: users2.filter(u => u.status === 'offline').length, disconnected: users2.filter(u => u.status === 'disconnected').length, total: users2.length };
+          io.emit('users_list_update', { users: users2, counts: counts2, emittedAt: new Date() });
         } catch (e) {
           console.error('socket disconnect handler error', e);
+        }
+      });
+
+      // listen for heartbeat/idle events from client
+      socket.on('heartbeat', async (payload) => {
+        try {
+          const now = new Date();
+          // atomically update the latest online session for this user
+          const sess = await Session.findOneAndUpdate({ userId: user._id, status: 'online' }, { $set: { lastActivity: now, isIdle: !!payload?.isIdle } }, { new: true, sort: { createdAt: -1 } });
+          if (sess) {
+            const p = await buildUsersPayload();
+            io.emit('users_list_update', { users: p.users, counts: p.counts, emittedAt: new Date() });
+          }
+        } catch (e) {
+          console.error('heartbeat handler error', e);
         }
       });
 

@@ -25,7 +25,7 @@ export default function AddUserForm({ onCreated }) {
   };
 
   return (
-    <div className="card mb-3">
+    <div className="card container mb-3">
       <div className="card-body">
         <h5 className="card-title">Add Employee</h5>
         <form onSubmit={submit} className="row g-2">

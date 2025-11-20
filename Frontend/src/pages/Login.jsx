@@ -1,41 +1,68 @@
-import React, { useState } from 'react';
-import { toast } from 'react-toastify';
-import useAuth from '../hooks/useAuth';
+import React, { useState } from "react";
+import { toast } from "react-toastify";
+import useAuth from "../hooks/useAuth";
+import "./login.css";
 
 export default function Login() {
-  const [employeeId, setEmployeeId] = useState('');
-  const [password, setPassword] = useState('');
+  const [employeeId, setEmployeeId] = useState("");
+  const [password, setPassword] = useState("");
+
   const { login } = useAuth();
 
   const submit = async (e) => {
     e.preventDefault();
     try {
       await login(employeeId, password);
-      toast.success('Logged in');
+      toast.success("Logged in");
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Login failed');
+      toast.error(err?.response?.data?.message || "Login failed");
     }
   };
 
   return (
-    <div className="row justify-content-center ">
-      <div className="col-md-6">
-        <div className="card shadow">
-          <div className="card-body">
-            <h3 className="card-title mb-3">Employee Login</h3>
-            <form onSubmit={submit}>
-              <div className="mb-3">
-                <label className="form-label">Employee ID</label>
-                <input className="form-control" value={employeeId} onChange={e => setEmployeeId(e.target.value)} />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Password</label>
-                <input type="password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} />
-              </div>
-              <button className="btn btn-primary">Login</button>
-            </form>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="avatar-wrap">
+          <div className="avatar-gradient">
+            <img
+              src="/kavyashift.png"
+              alt="kavyashift"
+              width="100"
+              height="100"
+            />
           </div>
         </div>
+
+        <h1 className="login-title">Welcome Back</h1>
+        <p className="login-sub">Sign in to track your shift</p>
+
+        <form className="login-form" onSubmit={submit}>
+          <div className="form-group">
+            {/* <label className="sr">Employee ID or Email</label> */}
+            <input
+              className="input-field"
+              placeholder="Employee ID "
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            {/* <label className="sr">Password</label> */}
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <button type="submit" className="btn-primary-gradient">
+             <i className="bi bi-box-arrow-in-right" style={{ fontSize: "18px" }}></i>
+            <span>Sign In</span>
+          </button>
+        </form>
       </div>
     </div>
   );
