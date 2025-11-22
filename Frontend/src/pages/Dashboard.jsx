@@ -4,6 +4,7 @@ import { connectSocket, disconnectSocket } from "../context/socket";
 import UserCard from "../components/UserCard";
 import AddUserForm from "../components/AddUserForm";
 import * as sessionApi from "../api/sessionApi";
+import * as authApi from '../api/authApi';
 import { reverseGeocodeIfCoords } from '../utils/geo';
 
 export default function Dashboard() {
@@ -15,8 +16,26 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
 
+  // Device detection
+  const detectDevice = () => {
+    const ua = navigator.userAgent || '';
+    if (/mobile/i.test(ua)) return 'Mobile';
+    if (/tablet/i.test(ua)) return 'Tablet';
+    return 'Desktop';
+  };
+
   useEffect(() => {
     (async () => {
+      let currentUser = qc.getQueryData(['user']);
+      if (!currentUser) {
+        try {
+          const meResp = await authApi.me(token);
+          currentUser = meResp.user;
+          qc.setQueryData(['user'], currentUser);
+        } catch {
+          // ignore
+        }
+      }
       try {
         const resp = await sessionApi.getActive(token);
         // fetch stats, logs, alerts for admin
@@ -32,25 +51,59 @@ export default function Dashboard() {
           .getAlerts(token)
           .then((a) => setAlerts(a))
           .catch(() => {});
-        // dedupe by id
-        const uniq = Array.from(
-          new Map((resp.users || []).map((u) => [String(u._id), u])).values()
-        );
-        // Resolve coordinate-style locations to human-readable names (cached)
-        (async () => {
-          const resolved = await Promise.all(uniq.map(async (u) => {
-            if (u.location) {
-              try {
-                const name = await reverseGeocodeIfCoords(u.location);
-                return { ...u, location: name };
-              } catch (e) {
-                return u;
+        // Build a map of active sessions by user id
+        const activeMap = new Map((resp.users || []).map((u) => [String(u._id), u]));
+
+        // If current user is admin, fetch all users and merge session info so admins see everybody
+        if (currentUser && currentUser.role === 'admin') {
+          try {
+            const all = await authApi.getUsers(token);
+            const merged = (all.users || []).map(u => {
+              const sid = String(u._id);
+              const session = activeMap.get(sid);
+              if (session) {
+                // merge profile and session but prefer profile role when present
+                return { ...u, ...session, role: u.role || session.role };
               }
-            }
-            return u;
-          }));
-          setUsers(resolved);
-        })();
+              return { _id: u._id, name: u.name, employeeId: u.employeeId, role: u.role, status: 'offline', device: null, location: null };
+            });
+            // Resolve coordinate-style locations to human-readable names (cached)
+            const resolved = await Promise.all(merged.map(async (u) => {
+              if (u.location) {
+                try {
+                  const name = await reverseGeocodeIfCoords(u.location);
+                  return { ...u, location: name };
+                } catch {
+                  return u;
+                }
+              }
+              return u;
+            }));
+            setUsers(resolved);
+          } catch (e) {
+            console.warn('Failed to fetch all users, falling back to active list', e);
+            const uniq = Array.from(activeMap.values());
+            setUsers(uniq);
+          }
+        } else {
+          // non-admins see active users only
+          const uniq = Array.from(activeMap.values());
+          // Resolve coordinate-style locations to human-readable names (cached)
+          (async () => {
+            const resolved = await Promise.all(uniq.map(async (u) => {
+              if (u.location) {
+                try {
+                  const name = await reverseGeocodeIfCoords(u.location);
+                  return { ...u, location: name };
+                } catch {
+                  return u;
+                }
+              }
+              return u;
+            }));
+            setUsers(resolved);
+          })();
+        }
         const socket = connectSocket(token);
         // update connection status for UI
         try { setSocketConnected(!!socket.connected); } catch (err) { console.warn('socket status check failed', err); }
@@ -66,10 +119,22 @@ export default function Dashboard() {
           const list = data.users || [];
           (async () => {
             const withNames = await Promise.all(list.map(async (u) => ({ ...(u || {}), location: u.location ? await reverseGeocodeIfCoords(u.location) : u.location })));
-            const uniq2 = Array.from(
-              new Map(withNames.map((u) => [String(u._id), u])).values()
-            );
-            setUsers(uniq2);
+            // If current user is admin, merge active session fields into the existing full user list
+            if (currentUser && currentUser.role === 'admin') {
+              setUsers((prev) => {
+                const map = new Map(prev.map((x) => [String(x._id), x]));
+                withNames.forEach((u) => {
+                  const key = String(u._id);
+                  const existing = map.get(key) || { _id: u._id };
+                  // merge session fields onto existing profile but keep profile role when available
+                  map.set(key, { ...existing, ...u, role: existing.role || u.role });
+                });
+                return Array.from(map.values());
+              });
+            } else {
+              const uniq2 = Array.from(new Map(withNames.map((u) => [String(u._id), u])).values());
+              setUsers(uniq2);
+            }
             if (data.counts) {
               setStats(prev => ({ ...prev, totalUsers: data.counts.total, onlineUsers: data.counts.online, offlineUsers: data.counts.offline, disconnected: data.counts.disconnected }));
             }
@@ -94,10 +159,10 @@ export default function Dashboard() {
         );
         // ensure socket is connected; if not, try to reconnect
         if (!socket.connected) {
-          try { socket.connect(); } catch (e) { console.warn('socket connect attempt failed', e); }
+          try { socket.connect(); } catch { console.warn('socket connect attempt failed'); }
         }
-      } catch (e) {
-        console.error(e);
+      } catch (err) {
+        console.error(err);
       }
     })();
 
@@ -162,16 +227,23 @@ export default function Dashboard() {
         if (user && user.role === "admin")
           return (
             <AddUserForm
-              onCreated={() =>
-                sessionApi.getActive(token).then((r) => {
-                  const uniq = Array.from(
-                    new Map(
-                      (r.users || []).map((u) => [String(u._id), u])
-                    ).values()
-                  );
-                  setUsers(uniq);
-                })
-              }
+              onCreated={async () => {
+                try {
+                  // fetch full user list (admins should see everyone), then merge any active session info
+                  const all = await authApi.getUsers(token);
+                  const activeResp = await sessionApi.getActive(token);
+                  const activeMap = new Map((activeResp.users || []).map(u => [String(u._id), u]));
+                  const merged = (all.users || []).map(u => {
+                    const sid = String(u._id);
+                    const session = activeMap.get(sid);
+                    if (session) return { ...u, ...session, role: u.role || session.role };
+                    return { _id: u._id, name: u.name, employeeId: u.employeeId, role: u.role, status: 'offline', device: null, location: null };
+                  });
+                  setUsers(merged);
+                } catch (e) {
+                  console.error('Failed to refresh user list after create', e);
+                }
+              }}
             />
           );
         return null;
@@ -183,9 +255,10 @@ export default function Dashboard() {
               <tr>
                 <th>Employee</th>
                 <th>Device</th>
+                <th>Role</th>
                 <th>Location</th>
-                <th>Login Time</th>
-                <th>LogOut Time</th>
+                <th>Login</th>
+                <th>LogOut</th>
                 <th>Active Time</th>
                 <th>Status</th>
                 <th>Action</th>
@@ -196,6 +269,7 @@ export default function Dashboard() {
                 <UserCard
                   key={u._id}
                   user={u}
+                  canEdit={(qc.getQueryData(["user"]) || {}).role === 'admin'}
                   onUpdated={(updated) =>
                     setUsers((prev) =>
                       prev.map((p) =>

@@ -195,7 +195,7 @@ export const endBeacon = async (req, res) => {
 // -------------------- ACTIVE USERS (FIXED) --------------------
 export const active = async (req, res) => {
   try {
-    // Use aggregation to pick the latest session per user
+    // Use aggregation to pick the latest session per user, including admin and teamlead
     const pipeline = [
       { $match: { status: { $in: ["online", "disconnected", "offline"] } } },
       { $sort: { createdAt: -1 } },
@@ -208,6 +208,7 @@ export const active = async (req, res) => {
         totalDuration: { $first: '$totalDuration' },
         device: { $first: '$device' },
         location: { $first: '$location' },
+        locationName: { $first: '$locationName' },
         ip: { $first: '$ip' },
         createdAt: { $first: '$createdAt' },
         lastActivity: { $first: '$lastActivity' },
@@ -219,12 +220,14 @@ export const active = async (req, res) => {
         _id: '$user._id',
         name: '$user.name',
         employeeId: '$user.employeeId',
+        role: '$user.role',
         loginTime: '$loginTime',
         logoutTime: '$logoutTime',
         status: '$status',
         totalDuration: '$totalDuration',
         device: '$device',
         location: '$location',
+        locationName: '$locationName',
         ip: '$ip',
         lastActivity: '$lastActivity',
         isIdle: '$isIdle',

@@ -5,8 +5,7 @@ export default function useSession() {
   const qc = useQueryClient();
 
   const start = async (token, opts = {}) => {
-    // try to collect device and location info
-    // prefer explicit device passed in opts (e.g., Mobile/Tablet/Desktop)
+
     const detectDevice = () => {
       const ua = navigator.userAgent || '';
       if (/mobile/i.test(ua)) return 'Mobile';

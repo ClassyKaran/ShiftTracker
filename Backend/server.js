@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
+import teamleadRoutes from './routes/teamleadRoutes.js';
 import socketHandler from './socket/socketHandler.js';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/session', sessionRoutes);
+app.use('/api/teamlead', teamleadRoutes);
 
 const PORT = process.env.PORT || 5000;
 

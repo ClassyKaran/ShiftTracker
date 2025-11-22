@@ -1,7 +1,8 @@
 import axios from "axios";
 
+// default to backend on localhost if env var not provided
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
   withCredentials: true,
 });
 
@@ -21,5 +22,8 @@ export const updateUser = (id, data, token) =>
 
 export const deleteUser = (id, token) =>
   API.delete(`/auth/user/${id}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
+
+export const getUsers = (token) =>
+  API.get('/auth/users', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
 
 export default API;

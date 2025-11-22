@@ -3,7 +3,7 @@ import Timer from "./Timer";
 import { updateUser, deleteUser } from "../api/authApi";
 import { useQueryClient } from "@tanstack/react-query";
 
-export default function UserCard({ user, onUpdated, onDeleted }) {
+export default function UserCard({ user, onUpdated, onDeleted, canEdit = true }) {
   const qc = useQueryClient();
   const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
   const [editing, setEditing] = useState(false);
@@ -82,8 +82,9 @@ export default function UserCard({ user, onUpdated, onDeleted }) {
         </div>
       </td>
 
-      <td>{user.device || "-"}</td>
-      <td>{user.location || "-"}</td>
+      <td>{typeof user.device !== 'undefined' && user.device !== null && user.device !== '' ? user.device : '-'}</td>
+      <td>{user.role || 'employee'}</td>
+      <td>{typeof user.location !== 'undefined' && user.location !== null && user.location !== '' ? user.location : '-'}</td>
       <td>
         {user.loginTime ? new Date(user.loginTime).toLocaleString() : "-"}
       </td>
@@ -113,38 +114,40 @@ export default function UserCard({ user, onUpdated, onDeleted }) {
         </span>
       </td>
       <td>
-        {editing ? (
-          <>
-            <button className="btn btn-sm btn-success me-1" onClick={save}>
-              Save
-            </button>
-            <button
-              className="btn btn-sm btn-secondary"
-              onClick={() => {
-                setEditing(false);
-                setForm({
-                  name: user.name,
-                  employeeId: user.employeeId,
-                  role: user.role,
-                });
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="btn btn-sm btn-outline-primary me-1"
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
-            <button className="btn btn-sm btn-outline-danger" onClick={remove}>
-              Delete
-            </button>
-          </>
-        )}
+        {canEdit ? (
+          editing ? (
+            <>
+              <button className="btn btn-sm btn-success me-1" onClick={save}>
+                <i className="bi bi-check-circle"/>
+              </button>
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => {
+                  setEditing(false);
+                  setForm({
+                    name: user.name,
+                    employeeId: user.employeeId,
+                    role: user.role,
+                  });
+                }}
+              >
+                <i className="bi bi-x-circle"/>
+              </button>
+            </>
+          ) : (
+            <div className="d-flex">
+              <button
+                className="btn btn-sm btn-outline-primary me-1"
+                onClick={() => setEditing(true)}
+              >
+                <i className="bi bi-pencil-square"/>
+              </button>
+              <button className="btn btn-sm btn-outline-danger" onClick={remove}>
+                <i className="bi bi-trash"/>
+              </button>
+            </div>
+          )
+        ) : null}
       </td>
     </tr>
   );

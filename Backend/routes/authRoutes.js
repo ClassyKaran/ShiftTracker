@@ -63,6 +63,17 @@ router.get("/me", auth, async (req, res) => {
   return res.json({ user: req.user });
 });
 
+// list users (admin only)
+router.get('/users', auth, adminOnly, async (req, res) => {
+  try {
+    const users = await User.find().select('_id name employeeId role isActive');
+    return res.json({ users });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Failed to list users' });
+  }
+});
+
 // update user (admin only)
 router.put('/user/:id', auth, adminOnly, async (req, res) => {
   try {

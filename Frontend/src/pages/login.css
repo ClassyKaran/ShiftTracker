@@ -4,14 +4,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
   /* background: linear-gradient(135deg, #7a8cf2, #7d4cc2); */
   background-image: url(../../public/pexels-ivan-s-7213104.jpg);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   /* background-attachment: fixed; */
-
 }
 
 /* Login Card */
@@ -63,7 +61,6 @@
 /* Form */
 .form-group {
   margin-bottom: 16px;
-  text-align: left;
 }
 
 .input-field {
@@ -78,32 +75,9 @@
   padding-left: 10px;
 }
 
-/* Remember + Forgot */
-.form-row-between {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-.remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #777;
-}
-.remember input {
-  width: 16px;
-  height: 16px;
-  accent-color: #6f7cf6;
-}
-.forgot-link {
-  font-size: 14px;
-  color: #4b63f8;
-  text-decoration: none;
-}
-.forgot-link:hover {
-  text-decoration: underline;
-}
+
+
+
 
 /* Button */
 .btn-primary-gradient {

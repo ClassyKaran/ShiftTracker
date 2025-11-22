@@ -4,12 +4,14 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 // import { useQueryClient } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
 import Header from './components/Header';
 import Login from './pages/Login';
 import EmployeeHome from './pages/EmployeeHome';
 import Dashboard from './pages/Dashboard';
+import TeamLeadDashboard from './pages/TeamLeadDashboard';
+import AdminLayout from './components/AdminLayout';
 import useAuth from './hooks/useAuth';
+import TeamSection from './pages/TeamSection';
 
 function App() {
   // const qc = useQueryClient();
@@ -28,12 +30,14 @@ function App() {
     <>
       <Header />
       <Routes>
-        <Route path="/" 
-        element={<Navigate to="/login" replace />} 
-        />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/employee" element={<EmployeeHome />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<AdminLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="teamsection" element={<TeamSection />} />
+          </Route>
+        <Route path="/teamlead" element={<TeamLeadDashboard />} />
       </Routes>
       <ToastContainer position="top-right" />
     </>

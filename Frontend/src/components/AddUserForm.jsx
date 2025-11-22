@@ -42,6 +42,7 @@ export default function AddUserForm({ onCreated }) {
             <select className="form-select" value={role} onChange={e=>setRole(e.target.value)}>
               <option value="employee">Employee</option>
               <option value="admin">Admin</option>
+              <option value="teamlead">TeamLead</option>
             </select>
           </div>
           <div className="col-md-2">
