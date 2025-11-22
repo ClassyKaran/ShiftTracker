@@ -34,7 +34,7 @@ export default function useSession() {
 
   const end = async (token, sessionId) => {
     const data = await sessionApi.endSession(token, sessionId);
-    qc.removeQueries(['activeSession']);
+    qc.removeQueries({ queryKey: ['activeSession'] });
     return data;
   };
 

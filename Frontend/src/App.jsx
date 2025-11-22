@@ -12,6 +12,8 @@ import TeamLeadDashboard from './pages/TeamLeadDashboard';
 import AdminLayout from './components/AdminLayout';
 import useAuth from './hooks/useAuth';
 import TeamSection from './pages/TeamSection';
+import TeamLeadLayout from './components/TeamLeadLayout';
+import TrackTeam from './pages/trackteam';
 
 function App() {
   // const qc = useQueryClient();
@@ -33,11 +35,17 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/employee" element={<EmployeeHome />} />
+
         <Route path="/dashboard" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="teamsection" element={<TeamSection />} />
-          </Route>
-        <Route path="/teamlead" element={<TeamLeadDashboard />} />
+        </Route>
+
+        <Route path="/teamlead" element={<TeamLeadLayout />}>
+          <Route index element={<TeamLeadDashboard />} />
+          <Route path="trackteam" element={<TrackTeam />} />
+       </Route>
+
       </Routes>
       <ToastContainer position="top-right" />
     </>

@@ -2,7 +2,7 @@ import React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
-export default function AdminLayout() {
+export default function TeamLeadLayout() {
   const qc = useQueryClient();
   const user =
     qc.getQueryData(["user"]) ||
@@ -28,7 +28,7 @@ export default function AdminLayout() {
 
         <nav className="nav nav-pills flex-column mb-auto">
           <NavLink
-            to="/dashboard"
+            to="/teamlead"
             className={({ isActive }) =>
               `nav-link d-flex align-items-center px-3 py-2 rounded mb-1 ${ (isActive || location.pathname === '/') ? 'bg-primary text-white' : 'text-dark'}`
             }
@@ -38,13 +38,13 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink
-            to="teamsection"
+            to="trackteam"
             className={({ isActive }) =>
               `nav-link d-flex align-items-center px-3 py-2 rounded mb-1 ${isActive ? 'bg-primary text-white' : 'text-dark'}`
             }
           >
             <i className="bi bi-people me-2" />
-            Team Section
+            Track Team
           </NavLink>
         </nav>
 
