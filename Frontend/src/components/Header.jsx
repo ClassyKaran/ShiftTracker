@@ -24,7 +24,7 @@ export default function Header() {
             width="40"
             className="me-2"
           />
-          <span>ShiftTracker</span>{" "}
+          <span>KavyaShift</span>{" "}
         </Link>
         <div className="collapse navbar-collapse justify-content-end">
           
