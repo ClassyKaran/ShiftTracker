@@ -1,12 +1,11 @@
 import React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export default function AdminLayout() {
   const qc = useQueryClient();
-  const user =
-    qc.getQueryData(["user"]) ||
-    JSON.parse(localStorage.getItem("user") || "null");
+  const userQuery = useQuery(['user'], () => qc.getQueryData(['user']), { initialData: qc.getQueryData(['user']), enabled: false });
+  const user = userQuery.data || JSON.parse(localStorage.getItem("user") || "null");
 
   const location = useLocation();
 

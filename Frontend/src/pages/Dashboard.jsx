@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [recent, setRecent] = useState([]);
   const [alerts, setAlerts] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   // Device detection
   const detectDevice = () => {
@@ -26,6 +27,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     (async () => {
+      // Only start session for admin (who lands here directly)
       let currentUser = qc.getQueryData(['user']);
       if (!currentUser) {
         try {
@@ -36,6 +38,30 @@ export default function Dashboard() {
           // ignore
         }
       }
+      if (currentUser && currentUser.role === 'admin' && !sessionStarted) {
+        // Start session with device and geolocation
+        let body = { device: detectDevice() };
+        try {
+          if (navigator.geolocation) {
+            body.location = await new Promise((resolve) => {
+              const timer = setTimeout(() => resolve(''), 3000);
+              navigator.geolocation.getCurrentPosition((pos) => {
+                clearTimeout(timer);
+                resolve(`${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`);
+              }, () => { clearTimeout(timer); resolve(''); }, { timeout: 3000 });
+            });
+          }
+        } catch (e) {
+          body.location = '';
+        }
+        try {
+          await sessionApi.startSession(token, body);
+          setSessionStarted(true);
+        } catch (e) {
+          // ignore
+        }
+      }
+
       try {
         const resp = await sessionApi.getActive(token);
         // fetch stats, logs, alerts for admin
@@ -168,7 +194,7 @@ export default function Dashboard() {
 
     return () => disconnectSocket();
     // eslint-disable-next-line
-  }, []);
+  }, [sessionStarted]);
 
   return (
     <div>
@@ -257,8 +283,8 @@ export default function Dashboard() {
                 <th>Device</th>
                 <th>Role</th>
                 <th>Location</th>
-                <th>Login</th>
-                <th>LogOut</th>
+                <th>Login Time</th>
+                <th>LogOut Time</th>
                 <th>Active Time</th>
                 <th>Status</th>
                 <th>Action</th>

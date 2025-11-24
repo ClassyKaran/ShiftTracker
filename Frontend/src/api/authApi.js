@@ -26,4 +26,7 @@ export const deleteUser = (id, token) =>
 export const getUsers = (token) =>
   API.get('/auth/users', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
 
+export const findByEmployeeId = (employeeId, token) =>
+  API.get(`/auth/user-by-employee?employeeId=${encodeURIComponent(employeeId)}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
+
 export default API;

@@ -1,15 +1,14 @@
 
 
-muze aisa krna tha jab user login kre tab o employye page pr sign in krke apni shift start kre aur usi button ko toggle krta sign out krke apni shift khatam krta 
-aur whi data capture hoke admin dashbord mai show hota aur uske data se pta chalta ki user ne kitna time work kiya .
-aur office 10:30 ko shuru hota hai aur 1 bje se 1:45 tak lunch break hota hai aur 6:30 ko band hota hai isse pta chalta hai ki user ne kitna time work kiya aur kitna time leave kiya
-but problem ye hai ki jab user login page se login krta hai to uska time count start ho jata hai aur jab user logout krta hai to uska time count stop ho jata hai aapne galta kiya jab user login page se login kr rha hai to waha se uska time count ho rha hai ye galat hai 
-aur uska ui change kro edam responsive aur clean boostrap aur uske icon ko use krke 
-muzse hindi mai communicate kro
+ye page teamlead handle karega
+        o yaha pr employeId se search krke employee ko add krega aur o aded use niche ek table me show krega
+        aur o yaha se employee ko remove bhi kr skta hai,
+        aur o yaha se employee ka sab data dekhega jaise admin Dashboard ke table mai hai  like name,employeeId,role ,isActive ,device, location , all data etc
+     
 
-
-
-
+        aur shift alert mai late join hone wale employe ko alert show krega,
+        aur recent activity table aded employye ka online ya offline ya dissconect hoga to o alert show hoga  tabel mai shoe krega username kesath ek color badge mai show krega,
+ ,aap muzse hindi mai baat kr skte ho 
 
 Shift Track System के सभी फीचर्स का हिंदी में विवरण:
 

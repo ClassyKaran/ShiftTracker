@@ -21,3 +21,9 @@ export const adminOnly = (req, res, next) => {
     return res.status(403).json({ message: "Admins only" });
   next();
 };
+
+export const teamleadOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "teamlead")
+    return res.status(403).json({ message: "teamlead only" });
+  next();
+};

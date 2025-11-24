@@ -1,30 +1,30 @@
 import React from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 export default function Header() {
   const qc = useQueryClient();
-  const user = qc.getQueryData(["user"]);
+  const userQuery = useQuery(['user'], () => qc.getQueryData(['user']), { initialData: qc.getQueryData(['user']), enabled: false });
+  const user = userQuery.data;
   const { logout } = useAuth();
   const avatar = user
     ? user.name
       ? user.name.charAt(0).toUpperCase()
       : "?"
     : "?";
+  const target = user ? (user.role === 'admin' ? '/dashboard' : user.role === 'teamlead' ? '/teamlead' : '/employee') : '/login';
+
   return (
     <nav className="navbar navbar-expand-lg navbar-light bg-light ">
-   
       <div className="container-fluid">
-      
-        <Link className="navbar-brand d-flex align-items-center" to="/">
-     
+        <Link className="navbar-brand d-flex align-items-center" to={target}>
           <img
             src="/kavyashift.png"
             alt="logo"
             width="40"
             className="me-2"
           />
-          <span>KavyaShift</span>{" "}
+          <span>KavyaShift</span>
         </Link>
         <div className="collapse navbar-collapse justify-content-end">
           
