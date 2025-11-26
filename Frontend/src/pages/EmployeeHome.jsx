@@ -142,9 +142,9 @@ export default function EmployeeHome() {
   };
 
   return (
-    <div className="container py-4">
+    <div className="container p-2">
       <div className="row justify-content-center">
-        <div className="col-12 col-md-6 col-lg-6">
+        <div className="col-12 col-md-12 col-lg-12">
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <div className="d-flex align-items-center mb-3">
@@ -216,7 +216,7 @@ export default function EmployeeHome() {
             </div>
           </div>
         </div>
-        <div className="col-12 col-md-6 col-lg-6">
+        <div className="col-12 col-md-12 col-lg-12">
           <div className="card">
             <div className="card-body">
               <h5 className="mb-3">
@@ -231,6 +231,19 @@ export default function EmployeeHome() {
     </div>
   );
 }
+
+
+
+
+
+
+
+//===================== History Table====================
+
+
+
+
+
 
 function HistoryTable({ session, token }) {
   const [logs, setLogs] = useState([]);

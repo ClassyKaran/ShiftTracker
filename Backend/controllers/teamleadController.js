@@ -31,3 +31,16 @@ export const setTracked = async (req, res) => {
     return res.status(500).json({ message: 'Failed to save tracked users' });
   }
 };
+
+export const getAllTracked = async (req, res) => {
+  try {
+    // Return all teamlead tracked docs, with teamlead info and tracked user details
+    const docs = await TeamLeadTrack.find().populate('teamleadId', 'name employeeId role').populate('tracked', 'name employeeId role');
+    // normalize
+    const mapped = (docs || []).map(d => ({ teamlead: d.teamleadId, tracked: d.tracked || [] }));
+    return res.json({ trackedByTeamlead: mapped });
+  } catch (e) {
+    console.error('getAllTracked error', e);
+    return res.status(500).json({ message: 'Failed to fetch teamlead tracked lists' });
+  }
+};

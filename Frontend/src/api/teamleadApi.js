@@ -12,3 +12,8 @@ export const setTracked = async (token, trackedIds) => {
   const resp = await axios.post(base + '/teamlead/tracked', { tracked: trackedIds }, { headers: { Authorization: `Bearer ${token}` } });
   return resp.data;
 };
+
+export const getAllTracked = async (token) => {
+  const resp = await axios.get(base + '/teamlead/all-tracked', { headers: { Authorization: `Bearer ${token}` } });
+  return resp.data;
+};

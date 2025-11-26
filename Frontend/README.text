@@ -1,14 +1,29 @@
 
-
-ye page teamlead handle karega
-        o yaha pr employeId se search krke employee ko add krega aur o aded use niche ek table me show krega
-        aur o yaha se employee ko remove bhi kr skta hai,
-        aur o yaha se employee ka sab data dekhega jaise admin Dashboard ke table mai hai  like name,employeeId,role ,isActive ,device, location , all data etc
-     
-
-        aur shift alert mai late join hone wale employe ko alert show krega,
-        aur recent activity table aded employye ka online ya offline ya dissconect hoga to o alert show hoga  tabel mai shoe krega username kesath ek color badge mai show krega,
+ye page pr maine static data se presentation ke liye handle  kiya hai wo actually kaam kaise kr rha hai analyse kro , 
+aur left side mai sabhi teamleaders show ho rhe hai , teamlead ko select krne pr right side mai uski team list  dikh rhi hai,  
+  pr muze dynamic krna hai ki konsa teamleader kisko add kya hai uski team mai , aapko ye sab data 
+   yaha page pr dynamic dikhana hai , q ki admin dekh ske konsa teamleader konse employee ko tracking kr rha hai, 
  ,aap muzse hindi mai baat kr skte ho 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Shift Track System के सभी फीचर्स का हिंदी में विवरण:
 

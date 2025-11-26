@@ -1,0 +1,112 @@
+.team-container {
+  display: flex;
+  width: 100%;
+  min-height: 450px;
+  background: #fafafa;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+ 
+/* LEFT SIDE - 40% */
+.left-sidebar {
+  width: 40%;
+  background: #ffffff;
+  padding: 20px;
+  border-right: 2px solid #e5e5e5;
+}
+ 
+.left-sidebar h2 {
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+ 
+.tl-item {
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+  transition: 0.3s;
+}
+ 
+.tl-item:hover {
+  background: #f0f0f0;
+}
+ 
+.tl-item.active {
+  background: #dfefff;
+  border-color: #7bb2ff;
+}
+ 
+/* RIGHT SIDE - 60% */
+.right-section {
+  width: 60%;
+  padding: 20px;
+}
+ 
+.right-section h2 {
+  margin-bottom: 15px;
+}
+ 
+.no-selection {
+  color: gray;
+  font-size: 16px;
+}
+ 
+.team-title {
+  margin-bottom: 15px;
+  color: #333;
+}
+ 
+/* MEMBER CARD */
+.member-card {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: white;
+  margin-bottom: 12px;
+  align-items: center;
+}
+ 
+.member-name {
+  font-size: 18px;
+}
+ 
+.status {
+  font-size: 14px;
+  margin-top: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+ 
+.status.in {
+  background: #d4f8d4;
+  color: #1b7d1b;
+  border: 1px solid #8ed88e;
+}
+ 
+.status.out {
+  background: #ffe0e0;
+  color: #c11a1a;
+  border: 1px solid #e58c8c;
+}
+ 
+.timing-info p {
+  margin: 3px 0;
+  color: #444;
+}
+ 
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .team-container {
+    flex-direction: column;
+  }
+  .left-sidebar, .right-section {
+    width: 100%;
+  }
+}
