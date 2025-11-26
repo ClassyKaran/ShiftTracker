@@ -12,18 +12,7 @@ export default function TeamLeadLayout() {
   return (
     <div className="d-flex min-vh-100">
       <aside className="d-flex flex-column flex-shrink-0 p-3 bg-white border-end" style={{ width: 250 }}>
-        <div className="d-flex align-items-center mb-4">
-          <div
-            className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
-            style={{ width: 40, height: 40 }}
-          >
-            {user ? (user.name ? user.name.charAt(0).toUpperCase() : "?") : "?"}
-          </div>
-          <div>
-            <div className="fw-bold">{user?.name || "User"}</div>
-            <div className="text-muted small">{user?.role || ""}</div>
-          </div>
-        </div>
+       
 
         <nav className="nav nav-pills flex-column mb-auto">
           <NavLink

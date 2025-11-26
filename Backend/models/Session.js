@@ -5,7 +5,7 @@ const SessionSchema = new mongoose.Schema({
   loginTime: { type: Date, default: Date.now },
   logoutTime: { type: Date },
   // human readable location (reverse-geocoded name)
-  locationName: { type: String, default: '' },
+  locationName: { type: String, default: "" },
   device: { type: String },
   location: { type: String },
   totalDuration: { type: Number, default: 0 },

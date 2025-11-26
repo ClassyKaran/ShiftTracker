@@ -1,0 +1,50 @@
+/* Header / Navbar styling: clean, white, shadowed */
+
+
+
+
+.navbar .navbar-brand img {
+  width: 220px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* 
+.container-fluid {
+  background-color: #f6faff;
+} */
+.navbar .nav-item .rounded-circle {
+    
+  width: 36px;
+  height: 36px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: none;
+  border: 1px solid rgba(11, 49, 88, 0.06);
+}
+
+.navbar .btn-outline-danger {
+  border-radius: 10px;
+  padding: 6px 10px;
+  border-color: rgba(234, 78, 55, 0.14);
+  color: rgba(234, 78, 55, 0.9);
+}
+
+.navbar .btn-outline-danger:hover {
+  background: rgba(234, 78, 55, 0.08);
+  transform: translateY(-2px);
+}
+
+/* small responsive adjustments */
+@media (max-width: 768px) {
+  .navbar .navbar-brand span {
+    font-size: 16px;
+  }
+  .navbar .navbar-brand img {
+    width: 100px;
+    height: 46px;
+  }
+}

@@ -2,6 +2,7 @@ import React from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import './header.css';
 
 export default function Header() {
   const qc = useQueryClient();
@@ -29,16 +30,14 @@ export default function Header() {
     : "/login";
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+    <nav className="navbar navbar-expand-lg ">
       <div className="container-fluid">
         
         {/* Logo */}
         <Link className="navbar-brand d-flex align-items-center" to={target}>
           <img
-            src="/kavyashift.png"
+            src="/image.png"
             alt="logo"
-            width="60"
-            className="me-2"
           />
         </Link>
 

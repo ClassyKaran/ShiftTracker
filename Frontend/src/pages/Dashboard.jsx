@@ -380,9 +380,9 @@ export default function Dashboard() {
                 <th>Device</th>
                 <th>Role</th>
                 <th>Location</th>
-                <th>Login Time</th>
-                <th>LogOut Time</th>
-                <th>Active Time</th>
+                <th>Login</th>
+                <th>LogOut</th>
+                <th>Duration</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -452,7 +452,7 @@ export default function Dashboard() {
       {alerts && (
         <div className="card container mt-3">
           <div className="card-body">
-            <h5>Shift Alerts</h5>
+            <div className="card-title">Shift Alerts</div>
             <div className="row">
               <div className="col-md-6">
                 <h6>Late Join</h6>
@@ -465,17 +465,7 @@ export default function Dashboard() {
                   ))}
                 </ul>
               </div>
-              <div className="col-md-6">
-                <h6>Extended Shift</h6>
-                <ul className="list-unstyled small">
-                  {alerts.extendedShift.map((a) => (
-                    <li key={a.sessionId}>
-                      {a.user?.name || "-"} —{" "}
-                      {Math.floor(a.totalDuration / 3600)}h
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            
             </div>
           </div>
         </div>
