@@ -1,47 +1,64 @@
 import React from "react";
-import { Outlet, NavLink, useLocation, Link } from "react-router-dom";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Outlet, NavLink } from "react-router-dom";
 
 export default function AdminLayout() {
-  const qc = useQueryClient();
-  const userQuery = useQuery(['user'], () => qc.getQueryData(['user']), { initialData: qc.getQueryData(['user']), enabled: false });
-  const user = userQuery.data || JSON.parse(localStorage.getItem("user") || "null");
-
-  const location = useLocation();
-
   return (
-    <div className="d-flex min-vh-100">
-      <aside className="d-flex flex-column flex-shrink-0 p-3 bg-white border-end" style={{ width: 250 }}>
- 
+    <div className="d-flex"  style={{background:'#f7f9ffdc', height: "83vh", overflow: "hidden"}}>
+      {/* style={{ height: "87vh", overflow: "hidden" }} */}
+      {/* Sidebar */}
+      <aside
+        className=" p-3"
+        style={{
+          width: "240px",
+          overflow: "hidden",
+          flexShrink: 0,
+        }}
+      >
         <nav className="nav nav-pills flex-column mb-auto">
+          {/* Dashboard */}
           <NavLink
             to="/dashboard"
+            end
             className={({ isActive }) =>
-              `nav-link d-flex align-items-center px-3 py-2 rounded mb-1 ${ (isActive || location.pathname === '/') ? 'bg-primary text-white' : 'text-dark'}`
+              `nav-link d-flex align-items-center py-2 mb-2  ${
+                isActive
+                  ? "active text-white bg-primary "
+                  : "text-dark bg-white "
+              }`
             }
           >
-            <i className="bi bi-speedometer2 me-2" />
+            <i className="bi bi-speedometer2 me-2"></i>
             Dashboard
           </NavLink>
 
           <NavLink
-            to="teamsection"
+            to="/dashboard/teamsection"
             className={({ isActive }) =>
-              `nav-link d-flex align-items-center px-3 py-2 rounded mb-1 ${isActive ? 'bg-primary text-white' : 'text-dark'}`
+              `nav-link d-flex align-items-center  py-2 mb-2  ${
+                isActive ? "active text-white bg-primary" : "text-dark bg-white"
+              }`
             }
           >
-            <i className="bi bi-people me-2" />
+            <i className="bi bi-people me-2"></i>
             Team Section
           </NavLink>
         </nav>
 
-        <div className="mt-auto small text-muted">© ShiftTracker</div>
+        <div className="mt-auto small text-white opacity-75">
+          © ShiftTracker
+        </div>
       </aside>
 
-      <main className="flex-grow-1 p-3 bg-light">
-        <div className="container-fluid">
-          <Outlet />
-        </div>
+      {/* Main Content */}
+      <main
+        className="flex-grow-1 p-3"
+        style={{
+          height: "100%",
+          overflowY: "auto",
+          background: "#f8f9fa",
+        }}
+      >
+        <Outlet />
       </main>
     </div>
   );

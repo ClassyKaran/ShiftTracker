@@ -62,7 +62,7 @@ export default function Dashboard() {
               );
             });
           }
-        } catch{
+        } catch {
           body.location = "";
         }
         try {
@@ -270,9 +270,9 @@ export default function Dashboard() {
   return (
     <div>
       {stats && (
-        <div class="container py-2">
+        <div class="container-fluid py-2 ">
           <div className="d-flex align-items-center mb-3">
-            <h2 class="mb-0 me-3">Team Dashboard</h2>
+            <h2 class="mb-0 me-3">Live Employee Tracking</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span
                 style={{
@@ -280,7 +280,6 @@ export default function Dashboard() {
                   height: 12,
                   borderRadius: 12,
                   background: socketConnected ? "#2ecc71" : "#e74c3c",
-                  display: "inline-block",
                   boxShadow: socketConnected
                     ? "0 0 6px rgba(46,204,113,0.5)"
                     : "none",
@@ -294,40 +293,75 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div class="row ">
-            <div class="col-md-3">
-              <div class="card text-center border-0 rounded-4 mb-4 shadow">
-                <div class="card-body">
-                  <h3 class="text-primary">{stats.totalUsers}</h3>
-                  <p class="text-muted mb-0">Total Employees</p>
-                </div>
+          {/* <!-- Tabs Container --> */}
+          <div class=" bg-white d-flex justify-content-between align-items-center p-2 mb-2 rounded">
+            <div class="d-flex gap-3">
+              <div class="tab-item active ">
+                <span>All </span>
+                <span
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    background: "#307feeff",
+                  }}
+                >
+                  {stats.totalUsers}
+                </span>
+              </div>
+
+              <div class="tab-item">
+                <span>Online </span>
+                <span 
+                
+                     style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    background: "#2ecc71",
+                  }}
+                
+                >{stats.onlineUsers}</span>
+              </div>
+
+              <div class="tab-item">
+                <span>Disconnected </span>
+                <span 
+                
+                 style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#ffffffff",
+                    borderRadius: "50%",
+                    background: "#fcce00ff",}}
+                >{stats.inactiveUsers}</span>
+              </div>
+              <div class="tab-item">
+                <span>Offline </span>
+                <span 
+                style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    background: "#e74c3c",
+                  }}
+                >{stats.offlineUsers}</span>
               </div>
             </div>
-
-            <div class="col-md-3">
-              <div class="card text-center border-0 rounded-4 mb-4 shadow">
-                <div class="card-body">
-                  <h3 class="text-success">{stats.onlineUsers}</h3>
-                  <p class="text-muted mb-0">Currently Online</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-3">
-              <div class="card text-center border-0 rounded-4 mb-4 shadow">
-                <div class="card-body">
-                  <h3 class="text-warning">{stats.inactiveUsers}</h3>
-                  <p class="text-muted mb-0">Disconnected</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-3">
-              <div class="card text-center border-0 rounded-4 mb-4 shadow">
-                <div class="card-body">
-                  <h3 class="text-danger">{stats.offlineUsers}</h3>
-                  <p class="text-muted mb-0">Offline</p>
-                </div>
+            <div>
+              <div class="filter-link">
+                <i class="bi bi-funnel"></i> <span>Filter</span>
               </div>
             </div>
           </div>
@@ -371,8 +405,8 @@ export default function Dashboard() {
           );
         return null;
       })()}
-      <div className="card container">
-        <div className="card-body">
+      <div className=" container-fluid ">
+
           <table className="table table-striped">
             <thead>
               <tr>
@@ -411,11 +445,43 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
-        </div>
+       
       </div>
-      {/* Recent activity */}
-      <div className="card container mt-3">
-        <div className="card-body">
+
+
+      {/* Alerts */}
+      {alerts && (
+        <div className="card mt-3 p-4">
+          <h6>Late Join</h6>
+          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+
+                <ul className="list-unstyled mb-0">
+                  {alerts.lateJoin.map((a) => (
+                    <li key={a.sessionId}>
+                      {a.user?.name || "-"} —{" "}
+                      {new Date(a.loginTime).toLocaleTimeString()}
+                    </li>
+                  ))}
+                </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+  
+      {/* <div className=" container bg-white p-3 mt-3">
+        <div className="">
           <h5>Recent Activity</h5>
           <table className="table table-sm">
             <thead>
@@ -446,30 +512,4 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Alerts */}
-      {alerts && (
-        <div className="card container mt-3">
-          <div className="card-body">
-            <div className="card-title">Shift Alerts</div>
-            <div className="row">
-              <div className="col-md-6">
-                <h6>Late Join</h6>
-                <ul className="list-unstyled small">
-                  {alerts.lateJoin.map((a) => (
-                    <li key={a.sessionId}>
-                      {a.user?.name || "-"} —{" "}
-                      {new Date(a.loginTime).toLocaleTimeString()}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+      </div> */}

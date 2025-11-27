@@ -118,6 +118,26 @@ export default function EmployeeHome() {
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [session, qc, token]);
 
+  // hydrate local session state from react-query cache or server on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const cached = qc.getQueryData(['activeSession']);
+        if (cached) { setSession(cached); return; }
+        // fetch active sessions and find this user's session
+        const user = qc.getQueryData(['user']);
+        if (!user) return;
+        const api = await import('../api/sessionApi');
+        const resp = await api.getActive(token).catch(() => null);
+        if (resp && Array.isArray(resp.users)) {
+          const mine = resp.users.find(u => String(u._id) === String(user.id || user._id));
+          if (mine) setSession(mine);
+        }
+      } catch (e) { void e; }
+    })();
+    // run on mount
+  }, [qc, token]);
+
   const handleLogout = async () => {
     try {
       if (session && session._id) await end(token, session._id);

@@ -9,7 +9,13 @@ aur left side mai sabhi teamleaders show ho rhe hai , teamlead ko select krne pr
 
 
 
-
+ style={{ 
+  width: 12,
+  height: 12,
+  borderRadius: 12,
+  background: "#2ecc71",
+  boxShadow: "0 0 6px rgba(46,204,113,0.5)"
+        }}
 
 
 

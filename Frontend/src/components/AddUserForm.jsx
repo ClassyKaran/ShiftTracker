@@ -25,9 +25,9 @@ export default function AddUserForm({ onCreated }) {
   };
 
   return (
-    <div className="card container mb-3">
-      <div className="card-body">
-        <h5 className="card-title">Add Employee</h5>
+    <div className=" container-fluid mb-3">
+      <div className="bg-white p-3 rounded">
+        <h5 className="">Add Employee</h5>
         <form onSubmit={submit} className="row g-2">
           <div className="col-md-3">
             <input className="form-control" placeholder="Name" value={name} onChange={e=>setName(e.target.value)} required />

@@ -64,7 +64,21 @@ export default function TeamLeadDashboard() {
 
   // keep token available for API calls from start/end and HistoryTable
   useEffect(() => {
-    // no-op for now; session is created explicitly by user action
+    // hydrate session from cache/server if present so shift persists across navigation
+    (async () => {
+      try {
+        const cached = qc.getQueryData(['activeSession']);
+        if (cached) { setSession(cached); return; }
+        const me = qc.getQueryData(['user']);
+        if (!me) return;
+        const api = await import('../api/sessionApi');
+        const active = await api.getActive(token).catch(() => null);
+        if (active && Array.isArray(active.users)) {
+          const mine = active.users.find(u => String(u._id) === String(me.id || me._id));
+          if (mine) setSession(mine);
+        }
+      } catch (e) { void e; }
+    })();
     return () => {};
   }, [qc, token]);
 

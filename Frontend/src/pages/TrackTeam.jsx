@@ -153,7 +153,6 @@ export default function TrackTeam() {
           <div className="col-md-2">
             <button className="btn btn-primary w-100" onClick={handleAdd} disabled={loading}><i className="bi bi-person-plus me-2"/>Add</button>
           </div>
-          <div className="col-md-4 text-end text-muted small">You can remove a user from tracked list using Remove action in the table.</div>
         </div>
       </div>
 

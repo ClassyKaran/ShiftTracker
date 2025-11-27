@@ -49,7 +49,6 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
 
   return (
     <tr>
-      {/* {console.log('Rendering UserCard for user:', user)} */}
       <td>
         <div className="d-flex align-items-center">
           <div

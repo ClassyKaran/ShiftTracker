@@ -1,13 +1,13 @@
 /* FULL PAGE LAYOUT */
-.auth-layout {
+.auth-layout{
   height: 83vh;
-  display: flex;
+
   background: #f7f9ffdc;
 }
 
 /* LEFT SIDE UI (white card look but full height) */
 .left-section {
-  width: 50%;
+  /* width: 50%; */
   padding: 60px 70px;
   display: flex;
   flex-direction: column;
@@ -21,7 +21,7 @@
 }
 
 .brand-name {
-  font-size: 38px;
+  font-size: 48px;
   color: #006c76;
   font-weight: 700;
   margin-bottom: 18px;
@@ -57,7 +57,7 @@
 
 /* RIGHT LOGIN AREA */
 .right-login {
-  width: 50%;
+  /* width: 50%; */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -150,4 +150,8 @@
     border-right: none;
     text-align: center;
   }
+  .tracking-btn {
+      display: contents;
+}
+
 }
