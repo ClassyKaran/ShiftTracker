@@ -56,15 +56,15 @@ export default function Header() {
 
         {/* Navbar Menu */}
         <div className="collapse navbar-collapse justify-content-end" id="mainNavbar">
-          <ul className="navbar-nav align-items-center mb-2 mb-lg-0">
+          <div className="navbar-nav align-items-center mb-2 mb-lg-0">
 
             {user && (
-              <li className="nav-item d-flex align-items-center">
+              <div className="nav-item d-flex align-items-center">
                 
-                {/* Avatar */}
+               
                 <div
                   className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
-                  style={{ width: 34, height: 34 }}
+                  style={{ width: 35, height: 35 }}
                 >
                   {avatar}
                 </div>
@@ -80,10 +80,10 @@ export default function Header() {
                   Logout
                 </button>
 
-              </li>
+              </div>
             )}
 
-          </ul>
+          </div>
         </div>
       </div>
     </nav>

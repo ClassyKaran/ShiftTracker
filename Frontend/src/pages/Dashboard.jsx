@@ -12,10 +12,47 @@ export default function Dashboard() {
   const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
-  const [recent, setRecent] = useState([]);
+  const [_recent, setRecent] = useState([]);
   const [alerts, setAlerts] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupRows, setPopupRows] = useState([]);
+
+  const handleOpenPopup = (type) => {
+    const rows = [];
+    const pushUser = (u, time) => rows.push({ name: u.name || '-', employeeId: u.employeeId || '', time });
+
+    if (type === "all") {
+      users.forEach((u) => {
+        const t = u.status === 'offline' ? u.logoutTime : (u.loginTime || u.lastActivity);
+        pushUser(u, t);
+      });
+      setPopupTitle('All users');
+    } else if (type === 'online') {
+      users.filter(u => u.status === 'online').forEach(u => pushUser(u, u.loginTime || u.lastActivity));
+      setPopupTitle('Online users');
+    } else if (type === 'disconnected') {
+      users.filter(u => u.status === 'disconnected').forEach(u => pushUser(u, u.lastActivity || u.loginTime));
+      setPopupTitle('Disconnected users');
+    } else if (type === 'offline') {
+      users.filter(u => u.status === 'offline').forEach(u => pushUser(u, u.logoutTime));
+      setPopupTitle('Offline users');
+    } else if (type === 'latejoin') {
+      // show from alerts if available
+      (alerts?.lateJoin || []).forEach(a => rows.push({ name: a.user?.name || '-', employeeId: a.user?.employeeId || '', time: a.loginTime }));
+      setPopupTitle('Late joiners');
+    } else if (type === 'idle') {
+      users.filter(u => !!u.isIdle).forEach(u => pushUser(u, u.lastActivity || u.loginTime));
+      setPopupTitle('Idle users');
+    }
+
+    setPopupRows(rows);
+    setPopupOpen(true);
+  };
+
+// console.log(recent);
 
   // Device detection
   const detectDevice = () => {
@@ -229,6 +266,8 @@ export default function Dashboard() {
                 onlineUsers: data.counts.online,
                 offlineUsers: data.counts.offline,
                 disconnected: data.counts.disconnected,
+                idleUsers: data.counts.idle,
+                lateJoinUsers: data.counts.lateJoin,
               }));
             }
           })();
@@ -294,9 +333,9 @@ export default function Dashboard() {
           </div>
 
           {/* <!-- Tabs Container --> */}
-          <div class=" bg-white d-flex justify-content-between align-items-center p-2 mb-2 rounded">
+          <div class=" bg-white  p-2 mb-2 rounded">
             <div class="d-flex gap-3">
-              <div class="tab-item active ">
+              <div class="tab-item active " role="button" onClick={() => handleOpenPopup('all')}>
                 <span>All </span>
                 <span
                   style={{
@@ -313,7 +352,7 @@ export default function Dashboard() {
                 </span>
               </div>
 
-              <div class="tab-item">
+              <div class="tab-item" role="button" onClick={() => handleOpenPopup('online')}>
                 <span>Online </span>
                 <span 
                 
@@ -330,10 +369,9 @@ export default function Dashboard() {
                 >{stats.onlineUsers}</span>
               </div>
 
-              <div class="tab-item">
+              <div class="tab-item" role="button" onClick={() => handleOpenPopup('disconnected')}>
                 <span>Disconnected </span>
                 <span 
-                
                  style={{
                     width: "24px",
                     height: "24px",
@@ -342,9 +380,10 @@ export default function Dashboard() {
                     color: "#ffffffff",
                     borderRadius: "50%",
                     background: "#fcce00ff",}}
-                >{stats.inactiveUsers}</span>
+                >{stats.disconnected}</span>
               </div>
-              <div class="tab-item">
+
+              <div class="tab-item" role="button" onClick={() => handleOpenPopup('offline')}>
                 <span>Offline </span>
                 <span 
                 style={{
@@ -356,14 +395,42 @@ export default function Dashboard() {
                     borderRadius: "50%",
                     background: "#e74c3c",
                   }}
-                >{stats.offlineUsers}</span>
+                >{stats.offlineUsers }</span>
               </div>
-            </div>
-            <div>
-              <div class="filter-link">
-                <i class="bi bi-funnel"></i> <span>Filter</span>
+
+              <div class="tab-item" role="button" onClick={() => handleOpenPopup('latejoin')}>
+                <span>Late Join </span>
+                <span 
+                style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    background: "#ff8000ff",
+                  }}
+                >{stats.lateJoinUsers||"0"}</span>
               </div>
+
+
+              <div class="tab-item" role="button" onClick={() => handleOpenPopup('idle')}>
+                <span>Idle </span>
+                <span
+                style={{
+                    width: "24px",
+                    height: "24px",
+                    display: "inline-block",
+                    textAlign: "center",
+                    color: "#fff",
+                    borderRadius: "50%", 
+                    background: "#000000ff",
+                  }}
+                >{stats.idleUsers||"0"}</span>
+              </div>
+
             </div>
+            
           </div>
         </div>
       )}
@@ -407,6 +474,54 @@ export default function Dashboard() {
       })()}
       <div className=" container-fluid ">
 
+        {/* Right-side popup for filtered lists */}
+        {popupOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 72,
+              right: 16,
+              width: 360,
+              maxHeight: '70vh',
+              overflowY: 'auto',
+              background: 'white',
+              zIndex: 9999,
+              borderRadius: 8,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.06)',
+            }}
+          >
+            <div className="p-3 d-flex justify-content-between align-items-center border-bottom">
+              <div>
+                <strong>{popupTitle}</strong>
+                <div className="text-muted small">{popupRows.length} employee(s)</div>
+              </div>
+              <div>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => setPopupOpen(false)}>Close</button>
+              </div>
+            </div>
+            <div className="p-2">
+              {popupRows.length === 0 ? (
+                <div className="text-center text-muted p-3">No employees match</div>
+              ) : (
+                <ul className="list-group list-group-flush">
+                  {popupRows.map((r, idx) => (
+                    <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
+                      <div>
+                        <div className="fw-semibold">{r.name || '-'}</div>
+                        <div className="text-muted small">{r.employeeId || ''}</div>
+                      </div>
+                      <div className="text-end small text-muted">
+                        {r.time ? new Date(r.time).toLocaleString() : '-'}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
           <table className="table table-striped">
             <thead>
               <tr>
@@ -449,23 +564,8 @@ export default function Dashboard() {
       </div>
 
 
-      {/* Alerts */}
-      {alerts && (
-        <div className="card mt-3 p-4">
-          <h6>Late Join</h6>
-          <div style={{ maxHeight: 200, overflowY: "auto" }}>
-
-                <ul className="list-unstyled mb-0">
-                  {alerts.lateJoin.map((a) => (
-                    <li key={a.sessionId}>
-                      {a.user?.name || "-"} —{" "}
-                      {new Date(a.loginTime).toLocaleTimeString()}
-                    </li>
-                  ))}
-                </ul>
-          </div>
-        </div>
-      )}
+     
+     
     </div>
   );
 }

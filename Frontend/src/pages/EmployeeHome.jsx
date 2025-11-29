@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 import { connectSocket, disconnectSocket } from "../context/socket";
 import useSession from "../hooks/useSession";
 import Timer from "../components/Timer";
-// import './employeeHome.css';
 import createIdleTracker from "../utils/idle";
+import './employeeHome.css';
 import { formatTime, durationSeconds } from "../utils/time";
 
 export default function EmployeeHome() {
@@ -123,16 +123,17 @@ export default function EmployeeHome() {
     (async () => {
       try {
         const cached = qc.getQueryData(['activeSession']);
-        if (cached) { setSession(cached); return; }
+        // Only consider cached sessions that are actually online. Disconnected/offline
+        // sessions should not make the UI show "End Shift" automatically after login.
+        if (cached && cached.status === 'online') { setSession(cached); return; }
         // fetch active sessions and find this user's session
-        const user = qc.getQueryData(['user']);
-        if (!user) return;
-        const api = await import('../api/sessionApi');
-        const resp = await api.getActive(token).catch(() => null);
-        if (resp && Array.isArray(resp.users)) {
-          const mine = resp.users.find(u => String(u._id) === String(user.id || user._id));
-          if (mine) setSession(mine);
-        }
+          // fetch cached user to decide whether to hydrate from cache
+          // We intentionally do NOT auto-hydrate from the server-side active list on login
+          // because server can have sessions started from other devices. Only respect
+          // a local cached activeSession (created when user explicitly clicked Start Shift)
+          // so a fresh login will show Start Shift.
+          const user = qc.getQueryData(['user']);
+          if (!user) return;
       } catch (e) { void e; }
     })();
     // run on mount
@@ -162,76 +163,60 @@ export default function EmployeeHome() {
   };
 
   return (
-    <div className="container p-2">
+    <div className="employee-home">
+      <div className="container p-2">
       <div className="row justify-content-center">
         <div className="col-12 col-md-12 col-lg-12">
-          <div className="card shadow-sm mb-4">
-            <div className="card-body">
-              <div className="d-flex align-items-center mb-3">
-                <i className="bi bi-person-circle fs-2 text-primary me-3" />
+          <div className="card shadow-sm mb-4 eh-top-card">
+            <div className="eh-left card-body">
+              
+              <div className="d-flex align-items-center mb-2">
+                <div className="me-3">
+                  <i className="bi bi-person-circle fs-1 text-primary" />
+                </div>
                 <div>
-                  <h4 className="mb-0">Shift Tracker</h4>
-                  <small className="text-muted">
-                    Start/end your shift from here
-                  </small>
+                  <div className="eh-brand">Shift Tracker</div>
+                  <div className="eh-sub">Start / End your shift — simple & fast</div>
                 </div>
               </div>
 
               <div className="text-center mb-3">
                 <button
-                  className={`btn btn-lg ${
-                    session ? "btn-danger" : "btn-success"
-                  } w-100 d-flex align-items-center justify-content-center gap-2`}
+                  className={`eh-start-btn btn btn-lg ${session ? 'eh-end-btn' : ''}`}
                   onClick={session ? handleEndShift : handleStartShift}
                   disabled={loading}
+                  style={session ? undefined : { background: 'var(--eh-success-grad)' }}
                 >
-                  <i
-                    className={`bi ${
-                      session ? "bi-stop-circle" : "bi-play-circle-fill"
-                    }`}
-                  />
-                  <span className="fs-5">
-                    {session ? "End Shift" : "Start Shift"}
-                  </span>
+                  <i className={`bi ${session ? 'bi-stop-circle ' : 'bi-play-circle-fill '}`} />
+                  <span className="fs-5 spa">{session ? ' End Shift' : ' Start Shift'}</span>
                 </button>
               </div>
 
-              <div className="row g-2">
-                <div className="col-6">
-                  <div className="border rounded-3 p-2 text-center">
-                    <div className="text-muted small">Device</div>
-                    <div className="fw-bold">{deviceType}</div>
-                  </div>
+              <div className="eh-metrics">
+                <div className="eh-metric">
+                  <div className="label">Device</div>
+                  <div className="value">{deviceType}</div>
                 </div>
-                <div className="col-6">
-                  <div className="border rounded-3 p-2 text-center">
-                    <div className="text-muted small">Location</div>
-                    <div className="fw-bold">
-                      {session?.locationName || session?.location || "-"}
-                    </div>
-                  </div>
+                <div className="eh-metric">
+                  <div className="label">Active Since</div>
+                  <div className="value">{session?.loginTime ? <Timer start={session.loginTime} /> : '-'}</div>
+                </div>
+                <div className="eh-metric">
+                  <div className="label">Location</div>
+                  <div className="value">{session?.locationName || session?.location || '-'}</div>
                 </div>
               </div>
 
-              <div className="mt-3 d-flex justify-content-between align-items-center">
-                <div>
-                  <div className="text-muted small">Active Time</div>
-                  <div className="fw-bold">
-                    {session?.loginTime ? (
-                      <Timer start={session.loginTime} />
-                    ) : (
-                      "-"
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={handleLogout}
-                  >
-                    <i className="bi bi-box-arrow-right me-1" /> Logout
-                  </button>
-                </div>
+            </div>
+
+            <div className="eh-right card-body d-flex flex-column justify-content-between">
+              <div>
+                <div className="text-muted small">Status</div>
+                <div className="fs-5 fw-bold" style={{ color: session ? '#21c45a' : '#6c757d' }}>{session ? 'Online' : 'Offline'}</div>
+              </div>
+
+              <div className="d-flex justify-content-end mt-2">
+                <button className="btn btn-outline-secondary" onClick={handleLogout}><i className="bi bi-box-arrow-right me-1" /> Logout</button>
               </div>
             </div>
           </div>
@@ -249,6 +234,7 @@ export default function EmployeeHome() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -274,7 +260,7 @@ function HistoryTable({ session, token }) {
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const fetchLogs = async (p = 1) => {
+  const fetchLogs = useCallback(async (p = 1) => {
     if (!token) return;
     setLoading(true);
     try {
@@ -295,13 +281,12 @@ function HistoryTable({ session, token }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, limit, from, to]);
 
   // run once when session changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchLogs(1);
-  }, [session]);
+  }, [session, fetchLogs]);
 
   const applyFilters = () => fetchLogs(1);
   const totalPages = Math.max(1, Math.ceil(total / limit));

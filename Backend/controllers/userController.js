@@ -1,99 +1,277 @@
+/**
+ * Session Controller - MERGED & FIXED
+ * - Adds: loginTime on start, /activity endpoint, idle watcher, disconnect watcher,
+ *   daily cleanup, archive, safe reverse geocode, improved CSV streaming.
+ *
+ * Drop into controllers folder. Requires Session & User models and optional node-cron.
+ */
+
 import Session from "../models/Session.js";
 import User from "../models/User.js";
 import { reverseGeocode } from "../utils/geocode.js";
+import jwt from "jsonwebtoken";
 
-// -------------------- STATS / ALERTS --------------------
+// Optional: node-cron for scheduled jobs. If not installed, scheduled tasks are skipped but controllers still work.
+let cron;
+try {
+  cron = (await import("node-cron")).default;
+} catch (e) {
+  cron = null;
+}
+
+// -------------------- CONFIG --------------------
+const CONFIG = {
+  TIMEZONE: "Asia/Kolkata", // IST
+  IDLE_MINUTES: 15, // mark isIdle after this many minutes
+  DISCONNECT_MINUTES: 5, // disconnected -> offline after this many minutes
+  ARCHIVE_DAYS: parseInt(process.env.ARCHIVE_DAYS || "90", 10),
+  DELETE_ARCHIVE_DAYS: parseInt(process.env.DELETE_ARCHIVE_DAYS || "365", 10),
+  CSV_RETENTION_DAYS: parseInt(process.env.CSV_RETENTION_DAYS || "30", 10),
+  DAILY_CLEAN_HOUR: 10, // 10:20 AM IST run daily cleanup
+  DAILY_CLEAN_MINUTE: 20,
+  // Shift / break times in 24h local time (IST)
+  SHIFT_START_HOUR: 10,
+  SHIFT_START_MIN: 30,
+  SHIFT_END_HOUR: 18,
+  SHIFT_END_MIN: 30,
+  MORNING_LATE_CUTOFF_MIN_AFTER_START: 5, // 10:35
+  LUNCH_START_HOUR: 13,
+  LUNCH_START_MIN: 0,
+  LUNCH_END_HOUR: 13,
+  LUNCH_END_MIN: 45,
+  LUNCH_GRACE_MIN_AFTER_END: 5, // 1:50
+  TEA_START_HOUR: 16,
+  TEA_START_MIN: 0,
+  TEA_END_HOUR: 16,
+  TEA_END_MIN: 15,
+  TEA_GRACE_MIN_AFTER_END: 5, // 4:20
+};
+
+// -------------------- Helpers (IST-safe) --------------------
+function toIST(date = new Date()) {
+  // Returns a Date object that represents the same wall-clock instant in IST
+  // Implementation: format in IST then parse
+  const s = date.toLocaleString("en-US", { timeZone: CONFIG.TIMEZONE });
+  return new Date(s);
+}
+
+function startOfDayIST(date = new Date()) {
+  const z = toIST(date);
+  return new Date(z.getFullYear(), z.getMonth(), z.getDate(), 0, 0, 0);
+}
+
+function combineIST(dateIST, hour, minute) {
+  const z = toIST(dateIST);
+  return new Date(z.getFullYear(), z.getMonth(), z.getDate(), hour, minute, 0);
+}
+
+function toISOStringSafe(d) {
+  return d ? new Date(d).toISOString() : "";
+}
+
+function computeTotalDuration(loginTime, logoutTime, fallback = 0) {
+  if (!loginTime) return fallback;
+  if (!logoutTime)
+    return Math.max(0, Math.floor((Date.now() - new Date(loginTime)) / 1000));
+  return Math.max(
+    0,
+    Math.floor((new Date(logoutTime) - new Date(loginTime)) / 1000)
+  );
+}
+
+// safe reverse geocode with timeout
+async function safeReverseGeocode(lat, lng, timeoutMs = 3000) {
+  if (!reverseGeocode) return null;
+  return new Promise((resolve) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) {
+        done = true;
+        resolve(null);
+      }
+    }, timeoutMs);
+    reverseGeocode(lat, lng)
+      .then((r) => {
+        if (!done) {
+          done = true;
+          clearTimeout(timer);
+          resolve(r);
+        }
+      })
+      .catch(() => {
+        if (!done) {
+          done = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      });
+  });
+}
+
+// is a login time a late-join? (consider morning, lunch, tea rules)
+function isLateJoin(loginDate) {
+  if (!loginDate) return false;
+  const loginIST = toIST(new Date(loginDate));
+  const y = loginIST.getFullYear(),
+    m = loginIST.getMonth(),
+    dt = loginIST.getDate();
+
+  // morning cutoff
+  const morningCutoff = new Date(
+    y,
+    m,
+    dt,
+    CONFIG.SHIFT_START_HOUR,
+    CONFIG.SHIFT_START_MIN + CONFIG.MORNING_LATE_CUTOFF_MIN_AFTER_START,
+    0
+  );
+  if (loginIST > morningCutoff && loginIST <= combineIST(loginIST, 23, 59))
+    return true;
+
+  // lunch
+  const lunchEndGrace = new Date(
+    y,
+    m,
+    dt,
+    CONFIG.LUNCH_END_HOUR,
+    CONFIG.LUNCH_END_MIN + CONFIG.LUNCH_GRACE_MIN_AFTER_END,
+    0
+  );
+  if (
+    loginIST > lunchEndGrace &&
+    loginIST <= combineIST(loginIST, 23, 59) &&
+    loginIST.getHours() >= CONFIG.LUNCH_START_HOUR
+  )
+    return true;
+
+  // tea
+  const teaEndGrace = new Date(
+    y,
+    m,
+    dt,
+    CONFIG.TEA_END_HOUR,
+    CONFIG.TEA_END_MIN + CONFIG.TEA_GRACE_MIN_AFTER_END,
+    0
+  );
+  if (
+    loginIST > teaEndGrace &&
+    loginIST <= combineIST(loginIST, 23, 59) &&
+    loginIST.getHours() >= CONFIG.TEA_START_HOUR
+  )
+    return true;
+
+  return false;
+}
+
+// -------------------- CONTROLLERS --------------------
+
+// STATS
 export const stats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
+
+    // Online users tracked via User.isActive (keeps consistent with other parts of system)
     const onlineUsers = await User.countDocuments({ isActive: true });
     const inactiveUsers = Math.max(0, totalUsers - onlineUsers);
-    const offlineUsersArr = await Session.find({ status: "offline" }).distinct(
-      "userId"
-    );
-    const offlineUsers = offlineUsersArr.length;
 
-    return res.json({ totalUsers, onlineUsers, inactiveUsers, offlineUsers });
+    // Latest session per user aggregation to compute statuses and idle
+    const pipeline = [
+      { $match: { status: { $in: ["online", "disconnected", "offline"] } } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$userId",
+          status: { $first: "$status" },
+          isIdle: { $first: "$isIdle" },
+        },
+      },
+    ];
+
+    const latest = await Session.aggregate(pipeline);
+    const online = latest.filter((x) => x.status === "online").length;
+    const offline = latest.filter((x) => x.status === "offline").length;
+    const disconnected = latest.filter((x) => x.status === "disconnected").length;
+    const idleUsers = latest.filter((x) => !!x.isIdle).length;
+
+    // Late joiners (unique users who logged in today after the late threshold)
+    const todayStart = startOfDayIST();
+    const todaySessions = await Session.find({
+      loginTime: { $gte: todayStart },
+      status: { $in: ["online", "offline", "disconnected"] },
+    }).select("userId loginTime");
+    const lateSet = new Set();
+    todaySessions.forEach((s) => {
+      if (s && s.loginTime && isLateJoin(s.loginTime) && s.userId) lateSet.add(String(s.userId));
+    });
+    const lateJoinUsers = lateSet.size;
+
+    return res.json({
+      totalUsers,
+      onlineUsers,
+      inactiveUsers,
+      offlineUsers: offline,
+      onlineUsersLive: online,
+      disconnected,
+      idleUsers,
+      lateJoinUsers,
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ message: "Failed to fetch stats" });
   }
 };
 
+// ALERTS
 export const alerts = async (req, res) => {
   try {
+    // Today's sessions (for late joins)
     const now = new Date();
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      0,
-      0,
-      0
-    );
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
-    // late join: loginTime after 09:30 today
-    const lateJoin = await Session.find({
+    const sessionsToday = await Session.find({
       loginTime: { $gte: todayStart },
       status: { $in: ["online", "offline", "disconnected"] },
-    })
-      .populate("userId", "name employeeId")
-      .then((arr) =>
-        arr
-          .filter((s) => {
-            const hour = s.loginTime.getHours() + s.loginTime.getMinutes() / 60;
-            return hour >= 9.5; // 9:30 AM or later
-          })
-          .map((s) => ({
-            sessionId: s._id,
-            user: s.userId
-              ? {
-                  id: s.userId._id,
-                  name: s.userId.name,
-                  employeeId: s.userId.employeeId,
-                }
-              : null,
-            loginTime: s.loginTime,
-          }))
-      );
+    }).populate("userId", "name employeeId");
 
-    // extended shift: sessions whose totalDuration > 9 hours (32400s)
-    const extended = await Session.find({ totalDuration: { $gt: 32400 } })
+    // late join sessions (filter by helper isLateJoin)
+    const lateJoin = sessionsToday
+      .filter((s) => isLateJoin(s.loginTime))
+      .map((s) => ({
+        sessionId: s._id,
+        user: s.userId ? { id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId } : null,
+        loginTime: s.loginTime,
+      }));
+
+    // extended shift: stored + currently live sessions > shift length
+    const shiftSeconds =
+      CONFIG.SHIFT_END_HOUR * 3600 + CONFIG.SHIFT_END_MIN * 60 -
+      (CONFIG.SHIFT_START_HOUR * 3600 + CONFIG.SHIFT_START_MIN * 60);
+
+    const storedExtended = await Session.find({ totalDuration: { $gt: shiftSeconds } })
       .populate("userId", "name employeeId")
       .limit(50)
       .sort({ createdAt: -1 });
-    const extendedShift = extended.map((s) => ({
+
+    const extendedShift = storedExtended.map((s) => ({
       sessionId: s._id,
-      user: s.userId
-        ? {
-            id: s.userId._id,
-            name: s.userId.name,
-            employeeId: s.userId.employeeId,
-          }
-        : null,
+      user: s.userId ? { id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId } : null,
       totalDuration: s.totalDuration,
     }));
 
-    // unexpected disconnect: sessions with status disconnected in last 24h
+    const onlineSessions = await Session.find({ status: "online" }).populate("userId", "name employeeId");
+    onlineSessions.forEach((s) => {
+      const live = computeTotalDuration(s.loginTime, null);
+      if (live > shiftSeconds) extendedShift.push({ sessionId: s._id, user: s.userId ? { id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId } : null, totalDuration: live });
+    });
+
+    // unexpected disconnects in last 24h
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const disconnects = await Session.find({
-      status: "disconnected",
-      createdAt: { $gte: since },
-    })
+    const disconnects = await Session.find({ status: "disconnected", createdAt: { $gte: since } })
       .populate("userId", "name employeeId")
       .limit(50)
       .sort({ createdAt: -1 });
-    const unexpectedDisconnect = disconnects.map((s) => ({
-      sessionId: s._id,
-      user: s.userId
-        ? {
-            id: s.userId._id,
-            name: s.userId.name,
-            employeeId: s.userId.employeeId,
-          }
-        : null,
-      createdAt: s.createdAt,
-    }));
+
+    const unexpectedDisconnect = disconnects.map((s) => ({ sessionId: s._id, user: s.userId ? { id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId } : null, createdAt: s.createdAt }));
 
     return res.json({ lateJoin, extendedShift, unexpectedDisconnect });
   } catch (e) {
@@ -102,12 +280,11 @@ export const alerts = async (req, res) => {
   }
 };
 
-// -------------------- START SESSION --------------------
+// START SESSION
 export const start = async (req, res) => {
   try {
     const user = req.user;
     const ip = req.ip || req.headers["x-forwarded-for"] || "";
-
     const { device, location } = req.body || {};
 
     // Prevent double-login: if there is an active online or disconnected session, resume it
@@ -115,13 +292,27 @@ export const start = async (req, res) => {
       userId: user._id,
       status: { $in: ["online", "disconnected"] },
     }).sort({ createdAt: -1 });
+
     if (existing) {
-      // update ip/device/location if provided
+      // if session is very old (previous day), close it and create a fresh one
+      const createdIST = toIST(existing.createdAt || existing.loginTime || new Date());
+      const todayStart = startOfDayIST();
+      if (createdIST < todayStart) {
+        // close old
+        existing.logoutTime = existing.lastActivity || existing.loginTime || new Date();
+        existing.totalDuration = computeTotalDuration(existing.loginTime, existing.logoutTime);
+        existing.status = "offline";
+        await existing.save();
+        existing = null; // will create new below
+      }
+    }
+
+    if (existing) {
       existing.ip = ip || existing.ip;
       existing.device = device || existing.device;
       existing.location = location || existing.location;
       existing.lastActivity = new Date();
-      // if previously disconnected, mark back to online
+      existing.isIdle = false;
       existing.status = "online";
       await existing.save();
       user.isActive = true;
@@ -129,22 +320,24 @@ export const start = async (req, res) => {
       return res.json({ session: existing, message: "resumed" });
     }
 
+    const now = new Date();
     const sessionData = {
       userId: user._id,
       ip,
       device: device || req.headers["user-agent"] || "",
-      location: location || "",
-      lastActivity: new Date(),
+      location: typeof location === "string" ? location : location ? JSON.stringify(location) : "",
+      lastActivity: now,
+      loginTime: now, // <--- added loginTime
       status: "online",
+      isIdle: false,
     };
 
-    // If location looks like coordinates, attempt server-side reverse geocode
+    // attempt reverse geocode if location looks like coordinates
     try {
       if (location) {
-        // accept { lat, lng } or string "lat,lng"
         let lat = null,
           lng = null;
-        if (typeof location === "object" && location.lat && location.lng) {
+        if (typeof location === "object" && location.lat != null && location.lng != null) {
           lat = location.lat;
           lng = location.lng;
         }
@@ -158,19 +351,17 @@ export const start = async (req, res) => {
           }
         }
         if (lat != null && lng != null) {
-          const geo = await reverseGeocode(lat, lng);
+          const geo = await safeReverseGeocode(lat, lng, 3000);
           if (geo && geo.name) sessionData.locationName = geo.name;
         }
       }
     } catch (e) {
-      console.warn("geocode on start failed", e.message || e);
+      console.warn("geocode on start failed", e && e.message);
     }
 
     const session = await Session.create(sessionData);
-
     user.isActive = true;
     await user.save();
-
     return res.json({ session });
   } catch (e) {
     console.error(e);
@@ -178,32 +369,60 @@ export const start = async (req, res) => {
   }
 };
 
-// -------------------- END SESSION --------------------
-export const end = async (req, res) => {
+// ACTIVITY endpoint - call from frontend to keep session alive / update lastActivity
+// Expected: authenticated request (req.user), optional sessionId in body
+export const activity = async (req, res) => {
   try {
-    const { sessionId } = req.body;
     const user = req.user;
-
-    let session;
+    const { sessionId } = req.body || {};
+    let session = null;
 
     if (sessionId) {
       session = await Session.findById(sessionId);
     } else {
-      session = await Session.findOne({
-        userId: user._id,
-        status: "online",
-      }).sort({ createdAt: -1 });
+      session = await Session.findOne({ userId: user._id, status: { $in: ["online", "disconnected"] } }).sort({ createdAt: -1 });
     }
 
     if (!session) return res.status(400).json({ message: "No active session" });
 
-    session.logoutTime = new Date();
-    session.totalDuration = Math.max(
-      0,
-      (session.logoutTime - session.loginTime) / 1000
-    );
-    session.status = "offline";
+    session.lastActivity = new Date();
+    session.isIdle = false; // reset idle on activity
+    // if previously disconnected but activity arrived, set to online
+    if (session.status === "disconnected") session.status = "online";
+    await session.save();
 
+    // ensure user is marked active
+    if (!user.isActive) {
+      user.isActive = true;
+      await user.save();
+    }
+
+    return res.json({ ok: true, sessionId: session._id });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: "Failed to update activity" });
+  }
+};
+
+// END SESSION
+export const end = async (req, res) => {
+  try {
+    const { sessionId } = req.body || {};
+    const user = req.user;
+    let session;
+
+    if (sessionId) session = await Session.findById(sessionId);
+    else
+      session = await Session.findOne({
+        userId: user._id,
+        status: "online",
+      }).sort({ createdAt: -1 });
+
+    if (!session) return res.status(400).json({ message: "No active session" });
+
+    session.logoutTime = new Date();
+    session.totalDuration = computeTotalDuration(session.loginTime, session.logoutTime);
+    session.status = "offline";
     await session.save();
 
     user.isActive = false;
@@ -216,39 +435,35 @@ export const end = async (req, res) => {
   }
 };
 
-// support beacon-style end where token may be provided in body
+// endBeacon (disconnect)
 export const endBeacon = async (req, res) => {
   try {
     const { sessionId, token } = req.body || {};
     let user = null;
     if (token) {
-      const jwt = await import("jsonwebtoken");
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret");
         user = await User.findById(decoded.id);
       } catch (e) {
-        // ignore - will try sessionId path
+        /* ignore */
       }
     }
 
     let session;
-    if (sessionId) {
-      session = await Session.findById(sessionId);
-    } else if (user) {
+    if (sessionId) session = await Session.findById(sessionId);
+    else if (user)
       session = await Session.findOne({
         userId: user._id,
         status: "online",
       }).sort({ createdAt: -1 });
-    }
 
     if (!session) return res.status(400).json({ message: "No active session" });
 
-    // mark session as disconnected rather than ending it — don't set logoutTime or totalDuration
     session.status = "disconnected";
     session.lastActivity = new Date();
     await session.save();
 
-    // keep user.isActive true so the shift remains active until explicit end
+    // keep user.isActive true until explicit end or disconnect watcher marks offline
     return res.json({ session });
   } catch (e) {
     console.error(e);
@@ -256,10 +471,9 @@ export const endBeacon = async (req, res) => {
   }
 };
 
-// -------------------- ACTIVE USERS (FIXED) --------------------
+// ACTIVE USERS
 export const active = async (req, res) => {
   try {
-    // Use aggregation to pick the latest session per user, including admin and teamlead
     const pipeline = [
       { $match: { status: { $in: ["online", "disconnected", "offline"] } } },
       { $sort: { createdAt: -1 } },
@@ -311,11 +525,10 @@ export const active = async (req, res) => {
     ];
 
     const users = await Session.aggregate(pipeline);
-    // compute live totalDuration for online users
     const usersWithTotal = users.map((s) => {
       const total =
         s.status === "online"
-          ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000)
+          ? Math.max(0, Math.floor((Date.now() - new Date(s.loginTime)) / 1000))
           : s.totalDuration || 0;
       return { ...s, totalDuration: Math.floor(total) };
     });
@@ -327,7 +540,7 @@ export const active = async (req, res) => {
   }
 };
 
-// -------------------- LOGS --------------------
+// LOGS
 export const logs = async (req, res) => {
   try {
     const {
@@ -343,18 +556,12 @@ export const logs = async (req, res) => {
     const l = Math.min(1000, Math.max(1, parseInt(limit, 10) || 100));
 
     const filter = {};
-    if (from)
-      filter.createdAt = { ...(filter.createdAt || {}), $gte: new Date(from) };
-    if (to)
-      filter.createdAt = { ...(filter.createdAt || {}), $lte: new Date(to) };
+    if (from) filter.createdAt = { ...(filter.createdAt || {}), $gte: new Date(from) };
+    if (to) filter.createdAt = { ...(filter.createdAt || {}), $lte: new Date(to) };
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
-
-    // if employeeId provided, resolve matching user(s)
     if (employeeId) {
-      const users = await User.find({ employeeId: String(employeeId) }).select(
-        "_id"
-      );
+      const users = await User.find({ employeeId: String(employeeId) }).select("_id");
       const ids = users.map((u) => u._id);
       filter.userId = { $in: ids };
     }
@@ -364,8 +571,6 @@ export const logs = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((p - 1) * l)
       .limit(l);
-
-    // map to include device/location
     const mapped = sessions.map((s) => ({
       sessionId: s._id,
       user: s.userId
@@ -385,8 +590,6 @@ export const logs = async (req, res) => {
       ip: s.ip || null,
       createdAt: s.createdAt,
     }));
-
-    // also return paging info
     const total = await Session.countDocuments(filter);
     return res.json({ sessions: mapped, page: p, limit: l, total });
   } catch (e) {
@@ -395,7 +598,7 @@ export const logs = async (req, res) => {
   }
 };
 
-// -------------------- EXPORT CSV --------------------
+// EXPORT CSV
 export const exportLogs = async (req, res) => {
   try {
     const {
@@ -407,16 +610,12 @@ export const exportLogs = async (req, res) => {
       limit = 10000,
     } = req.query || {};
     const filter = {};
-    if (from)
-      filter.createdAt = { ...(filter.createdAt || {}), $gte: new Date(from) };
-    if (to)
-      filter.createdAt = { ...(filter.createdAt || {}), $lte: new Date(to) };
+    if (from) filter.createdAt = { ...(filter.createdAt || {}), $gte: new Date(from) };
+    if (to) filter.createdAt = { ...(filter.createdAt || {}), $lte: new Date(to) };
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
     if (employeeId) {
-      const users = await User.find({ employeeId: String(employeeId) }).select(
-        "_id"
-      );
+      const users = await User.find({ employeeId: String(employeeId) }).select("_id");
       const ids = users.map((u) => u._id);
       filter.userId = { $in: ids };
     }
@@ -426,19 +625,8 @@ export const exportLogs = async (req, res) => {
       .populate("userId", "name employeeId")
       .sort({ createdAt: -1 })
       .limit(lim);
-    const rows = sessions.map((s) => ({
-      sessionId: s._id,
-      name: s.userId ? s.userId.name : "",
-      employeeId: s.userId ? s.userId.employeeId : "",
-      loginTime: s.loginTime ? s.loginTime.toISOString() : "",
-      logoutTime: s.logoutTime ? s.logoutTime.toISOString() : "",
-      totalDuration: s.totalDuration || 0,
-      status: s.status,
-      device: s.device || "",
-      location: s.location || "",
-      locationName: s.locationName || "",
-      ip: s.ip || "",
-    }));
+
+    // stream small CSV
     const header = [
       "sessionId",
       "name",
@@ -452,24 +640,36 @@ export const exportLogs = async (req, res) => {
       "locationName",
       "ip",
     ];
-    const csv = [header.join(",")]
-      .concat(
-        rows.map((r) => header.map((h) => `"${String(r[h] || "")}"`).join(","))
-      )
-      .join("\n");
     res.setHeader("Content-Type", "text/csv");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="sessions-${Date.now()}.csv"`
-    );
-    return res.send(csv);
+    res.setHeader("Content-Disposition", `attachment; filename="sessions-${Date.now()}.csv"`);
+
+    // write header
+    res.write(header.join(",") + "\n");
+    for (const s of sessions) {
+      const row = {
+        sessionId: s._id,
+        name: s.userId ? s.userId.name : "",
+        employeeId: s.userId ? s.userId.employeeId : "",
+        loginTime: s.loginTime ? toISOStringSafe(s.loginTime) : "",
+        logoutTime: s.logoutTime ? toISOStringSafe(s.logoutTime) : "",
+        totalDuration: s.totalDuration || 0,
+        status: s.status,
+        device: s.device || "",
+        location: s.location || "",
+        locationName: s.locationName || "",
+        ip: s.ip || "",
+      };
+      const escaped = header.map((h) => `"${String(row[h] || "").replace(/"/g, '""')}"`).join(",");
+      res.write(escaped + "\n");
+    }
+    return res.end();
   } catch (e) {
     console.error(e);
     return res.status(500).json({ message: "Failed to export logs" });
   }
 };
 
-// -------------------- CLEANUP --------------------
+// CLEANUP (manual endpoint)
 export const cleanup = async (req, res) => {
   try {
     // remove sessions with null userId older than 30 days
@@ -484,3 +684,125 @@ export const cleanup = async (req, res) => {
     return res.status(500).json({ message: "Cleanup failed" });
   }
 };
+
+// -------------------- Background Jobs --------------------
+
+async function idleWatcher() {
+  try {
+    const threshold = new Date(Date.now() - CONFIG.IDLE_MINUTES * 60 * 1000);
+    // mark online sessions with lastActivity < threshold as idle
+    const toIdle = await Session.find({ status: "online", lastActivity: { $lt: threshold }, isIdle: { $ne: true } });
+    for (const s of toIdle) {
+      s.isIdle = true;
+      await s.save();
+    }
+    // optional: mark isIdle false for those with recent activity
+    const activeThreshold = new Date(Date.now() - (CONFIG.IDLE_MINUTES - 1) * 60 * 1000);
+    await Session.updateMany({ status: "online", lastActivity: { $gte: activeThreshold }, isIdle: true }, { $set: { isIdle: false } });
+  } catch (e) {
+    console.error("idleWatcher failed", e);
+  }
+}
+
+async function disconnectWatcher() {
+  try {
+    const threshold = new Date(Date.now() - CONFIG.DISCONNECT_MINUTES * 60 * 1000);
+    const toOffline = await Session.find({ status: "disconnected", lastActivity: { $lt: threshold } });
+    for (const s of toOffline) {
+      s.status = "offline";
+      s.logoutTime = s.lastActivity || new Date();
+      s.totalDuration = computeTotalDuration(s.loginTime, s.logoutTime);
+      await s.save();
+      // keep user.isActive false only if no other online session exists
+      const other = await Session.findOne({ userId: s.userId, status: "online" });
+      if (!other) {
+        await User.findByIdAndUpdate(s.userId, { isActive: false });
+      }
+    }
+  } catch (e) {
+    console.error("disconnectWatcher failed", e);
+  }
+}
+
+async function dailyCleanupTask() {
+  try {
+    const todayStart = startOfDayIST();
+
+    // 1) Close yesterday's sessions that are still online/disconnected
+    const openQuery = { createdAt: { $lt: todayStart }, status: { $in: ["online", "disconnected"] } };
+    const cursor = Session.find(openQuery).cursor();
+    for (let s = await cursor.next(); s != null; s = await cursor.next()) {
+      s.logoutTime = s.lastActivity || s.loginTime || new Date();
+      s.totalDuration = computeTotalDuration(s.loginTime, s.logoutTime);
+      s.status = "offline";
+      await s.save();
+      await User.findByIdAndUpdate(s.userId, { isActive: false });
+    }
+
+    // 2) Deduplicate sessions created before today: keep the latest per user, close older ones
+    const dupPipeline = [
+      { $match: { createdAt: { $lt: todayStart } } },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: "$userId", keepId: { $first: "$_id" }, otherIds: { $push: "$_id" } } }
+    ];
+    const dups = await Session.aggregate(dupPipeline);
+    for (const d of dups) {
+      const toRemove = (d.otherIds || []).filter((id) => String(id) !== String(d.keepId));
+      if (toRemove.length) {
+        await Session.updateMany({ _id: { $in: toRemove } }, { $set: { status: "offline", logoutTime: new Date(), totalDuration: 0 } });
+      }
+    }
+
+    // 3) Archive very old sessions to sessions_archive collection (in chunks)
+    const ARCHIVE_DAYS = CONFIG.ARCHIVE_DAYS;
+    if (ARCHIVE_DAYS > 0) {
+      const cutoff = new Date(Date.now() - ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
+      const oldSessions = await Session.find({ createdAt: { $lt: cutoff } }).limit(1000);
+      if (oldSessions.length) {
+        const archiveColl = (await import("mongoose")).connection.collection("sessions_archive");
+        const docs = oldSessions.map((s) => { const o = s.toObject(); o.origId = s._id; return o; });
+        await archiveColl.insertMany(docs);
+        const ids = oldSessions.map((s) => s._id);
+        await Session.deleteMany({ _id: { $in: ids } });
+      }
+    }
+
+    // 4) Delete archived older than DELETE_ARCHIVE_DAYS
+    const DELETE_DAYS = CONFIG.DELETE_ARCHIVE_DAYS;
+    if (DELETE_DAYS > 0) {
+      const deleteCutoff = new Date(Date.now() - DELETE_DAYS * 24 * 60 * 60 * 1000);
+      const archiveColl = (await import("mongoose")).connection.collection("sessions_archive");
+      await archiveColl.deleteMany({ createdAt: { $lt: deleteCutoff } });
+    }
+
+    console.log("Daily cleanup completed");
+  } catch (e) {
+    console.error("dailyCleanupTask failed", e);
+  }
+}
+
+// schedule jobs if cron available
+if (cron) {
+  try {
+    // idle watcher every 1 minute
+    cron.schedule("* * * * *", () => { idleWatcher().catch(e => console.error(e)); });
+
+    // disconnected watcher every 1 minute
+    cron.schedule("* * * * *", () => { disconnectWatcher().catch(e => console.error(e)); });
+
+    // daily cleanup at configured IST time
+    const spec = `${CONFIG.DAILY_CLEAN_MINUTE} ${CONFIG.DAILY_CLEAN_HOUR} * * *`;
+    cron.schedule(spec, () => { dailyCleanupTask().catch(e => console.error(e)); }, { timezone: CONFIG.TIMEZONE });
+
+    console.log("Session controller cron jobs scheduled");
+  } catch (e) {
+    console.warn("Failed to schedule cron jobs", e);
+  }
+} else {
+  console.warn("node-cron not found - background jobs (idle/disconnect watcher, daily cleanup) are disabled. Install node-cron to enable.");
+}
+
+// Export helper for manual invocation if needed
+export const runDailyCleanup = dailyCleanupTask;
+export const runDisconnectWatcher = disconnectWatcher;
+export const runIdleWatcher = idleWatcher;

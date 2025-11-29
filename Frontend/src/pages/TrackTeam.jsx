@@ -14,8 +14,11 @@ export default function TrackTeam() {
   const [trackedDocs, setTrackedDocs] = useState([]); // tracked user profiles
   const [searchId, setSearchId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recent, setRecent] = useState([]);
+  const [_recent, set_Recent] = useState([]);
   const [alerts, setAlerts] = useState({ lateJoin: [], extendedShift: [] });
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTitle, setPopupTitle] = useState('');
+  const [popupRows, setPopupRows] = useState([]);
   const socketRef = useRef(null);
 
   const fetchTracked = async () => {
@@ -34,7 +37,7 @@ export default function TrackTeam() {
       const active = await sessionApi.getActive(token);
       const activeMap = new Map((active.users || []).map(u => [String(u._id), u]));
       return profiles.map(p => ({ ...p, ...(activeMap.get(String(p._id)) || {}) }));
-    } catch (e) {
+    } catch {
       return profiles;
     }
   };
@@ -48,7 +51,7 @@ export default function TrackTeam() {
       } catch (err) { void err; }
       try {
         const logs = await sessionApi.getLogs(token).catch(()=>({ sessions: [] }));
-        setRecent(logs.sessions || []);
+        set_Recent(logs.sessions || []);
       } catch (e) { console.error(e); }
 
       // connect socket for realtime updates
@@ -68,7 +71,7 @@ export default function TrackTeam() {
         });
 
         const pushRecent = (r) => {
-          setRecent(prev => [r, ...prev].slice(0, 50));
+          set_Recent(prev => [r, ...prev].slice(0, 50));
         };
 
         socket.on('user_online', (u) => {
@@ -92,6 +95,37 @@ export default function TrackTeam() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const handleOpenPopup = (type) => {
+    const rows = [];
+    const pushUser = (u, time) => rows.push({ name: u.name || '-', employeeId: u.employeeId || '', time });
+
+    if (type === 'all') {
+      trackedDocs.forEach((u) => {
+        const t = u.status === 'offline' ? u.logoutTime : (u.loginTime || u.lastActivity);
+        pushUser(u, t);
+      });
+      setPopupTitle('All tracked users');
+    } else if (type === 'online') {
+      trackedDocs.filter(u => u.status === 'online').forEach(u => pushUser(u, u.loginTime || u.lastActivity));
+      setPopupTitle('Online tracked users');
+    } else if (type === 'disconnected') {
+      trackedDocs.filter(u => u.status === 'disconnected').forEach(u => pushUser(u, u.lastActivity || u.loginTime));
+      setPopupTitle('Disconnected tracked users');
+    } else if (type === 'offline') {
+      trackedDocs.filter(u => u.status === 'offline').forEach(u => pushUser(u, u.logoutTime));
+      setPopupTitle('Offline tracked users');
+    } else if (type === 'latejoin') {
+      (alerts?.lateJoin || []).forEach(a => rows.push({ name: a.user?.name || '-', employeeId: a.user?.employeeId || '', time: a.loginTime }));
+      setPopupTitle('Late joiners');
+    } else if (type === 'idle') {
+      trackedDocs.filter(u => !!u.isIdle).forEach(u => pushUser(u, u.lastActivity || u.loginTime));
+      setPopupTitle('Idle tracked users');
+    }
+
+    setPopupRows(rows);
+    setPopupOpen(true);
+  };
 
   const handleAdd = async () => {
     if (!searchId) return toast.warn('Enter employee ID');
@@ -143,6 +177,63 @@ export default function TrackTeam() {
     <div className="container py-3">
       <h3>Track Team</h3>
       <p className="text-muted">Add employees by their Employee ID to track their realtime status and history.</p>
+
+      {/* tabs / stats */}
+      {(() => {
+        const stats = {
+          total: trackedDocs.length,
+          online: trackedDocs.filter(u => u.status === 'online').length,
+          disconnected: trackedDocs.filter(u => u.status === 'disconnected').length,
+          offline: trackedDocs.filter(u => u.status === 'offline').length,
+          idle: trackedDocs.filter(u => !!u.isIdle).length,
+          lateJoin: (alerts?.lateJoin || []).length,
+        };
+
+        return (
+          <div className="container-fluid py-2 ">
+            <div className="d-flex align-items-center mb-3">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <small className="text-muted">Track Filters</small>
+              </div>
+            </div>
+
+            <div className=" bg-white  p-2 mb-2 rounded">
+              <div className="d-flex gap-3">
+                <div className="tab-item active " role="button" onClick={() => handleOpenPopup('all')}>
+                  <span>All </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#307feeff' }}>{stats.total}</span>
+                </div>
+
+                <div className="tab-item" role="button" onClick={() => handleOpenPopup('online')}>
+                  <span>Online </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#2ecc71' }}>{stats.online}</span>
+                </div>
+
+                <div className="tab-item" role="button" onClick={() => handleOpenPopup('disconnected')}>
+                  <span>Disconnected </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#ffffffff', borderRadius: '50%', background: '#fcce00ff' }}>{stats.disconnected}</span>
+                </div>
+
+                <div className="tab-item" role="button" onClick={() => handleOpenPopup('offline')}>
+                  <span>Offline </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#e74c3c' }}>{stats.offline}</span>
+                </div>
+
+                <div className="tab-item" role="button" onClick={() => handleOpenPopup('latejoin')}>
+                  <span>Late Join </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#ff8000ff' }}>{stats.lateJoin || '0'}</span>
+                </div>
+
+                <div className="tab-item" role="button" onClick={() => handleOpenPopup('idle')}>
+                  <span>Idle </span>
+                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#000000ff' }}>{stats.idle || '0'}</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="card mb-3">
         <div className="card-body row gx-2 gy-2 align-items-end">
@@ -202,56 +293,55 @@ export default function TrackTeam() {
         </div>
       </div>
 
-      <div className="row">
-        <div className="col-md-7">
-          <div className="card mb-3">
-            <div className="card-body">
-              <h5>Recent Activity</h5>
-              <table className="table table-sm">
-                <thead>
-                  <tr><th>User</th><th>Action</th><th>Time</th><th>Device</th></tr>
-                </thead>
-                <tbody>
-                  {recent.slice(0,20).map(r => (
-                    <tr key={r.sessionId || r.user?._id || Math.random()}>
-                      <td>
-                        <div className="d-flex align-items-center gap-2">
-                          <div className={`badge rounded-pill ${r.status==='online' ? 'bg-success' : r.status==='offline' ? 'bg-secondary' : 'bg-warning'}`}>{r.user?.name || '-'}</div>
-                        </div>
-                      </td>
-                      <td>{r.status==='online' ? 'Login' : r.status==='offline' ? 'Logout' : 'Disconnected'}</td>
-                      <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
-                      <td>{r.device || r.ip || '-'}</td>
-                    </tr>
-                  ))}
-                  {recent.length===0 && <tr><td colSpan={4} className="text-center text-muted">No recent activity</td></tr>}
-                </tbody>
-              </table>
+      {/* Right-side popup for filtered lists */}
+      {popupOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 72,
+            right: 16,
+            width: 360,
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            background: 'white',
+            zIndex: 9999,
+            borderRadius: 8,
+            boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+          <div className="p-3 d-flex justify-content-between align-items-center border-bottom">
+            <div>
+              <strong>{popupTitle}</strong>
+              <div className="text-muted small">{popupRows.length} employee(s)</div>
+            </div>
+            <div>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setPopupOpen(false)}>Close</button>
             </div>
           </div>
-        </div>
-        <div className="col-md-5">
-          <div className="card mb-3">
-            <div className="card-body">
-              <h5>Shift Alerts</h5>
-              <h6 className="mt-2">Late Join</h6>
-              <ul className="list-unstyled small">
-                {(alerts?.lateJoin || []).map(a => (
-                  <li key={a.sessionId}>{a.user?.name || '-'} — {a.loginTime ? new Date(a.loginTime).toLocaleTimeString() : '-'}</li>
+          <div className="p-2">
+            {popupRows.length === 0 ? (
+              <div className="text-center text-muted p-3">No employees match</div>
+            ) : (
+              <ul className="list-group list-group-flush">
+                {popupRows.map((r, idx) => (
+                  <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-semibold">{r.name || '-'}</div>
+                      <div className="text-muted small">{r.employeeId || ''}</div>
+                    </div>
+                    <div className="text-end small text-muted">
+                      {r.time ? new Date(r.time).toLocaleString() : '-'}
+                    </div>
+                  </li>
                 ))}
-                {(alerts?.lateJoin || []).length === 0 && <li className="text-muted">No late joins</li>}
               </ul>
-              <h6 className="mt-3">Recent Disconnects</h6>
-              <ul className="list-unstyled small">
-                {(alerts?.recentDisconnects || []).map(a => (
-                  <li key={a.sessionId}>{a.user?.name || '-'} — {a.reason || 'disconnected'}</li>
-                ))}
-                {(alerts?.recentDisconnects || []).length === 0 && <li className="text-muted">No recent disconnects</li>}
-              </ul>
-            </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
+
+    
     </div>
   )
 }

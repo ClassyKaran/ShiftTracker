@@ -1,5 +1,7 @@
 /* eslint-disable no-irregular-whitespace */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 import "./login.css";
@@ -8,7 +10,36 @@ export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
 
-  const { login } = useAuth();
+  const { login, bootstrap } = useAuth();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+
+  // If we already have an authenticated user / token, don't allow visiting login
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      // check cached user or token
+      let user = qc.getQueryData(["user"]);
+      const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
+      if (!user && token) {
+        try {
+          user = await bootstrap();
+        } catch {
+          user = null;
+        }
+      }
+      if (mounted && user) {
+        // redirect based on role
+        if (user.role === "admin") return navigate("/dashboard");
+        if (user.role === "teamlead") return navigate("/teamlead");
+        return navigate("/employee");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();

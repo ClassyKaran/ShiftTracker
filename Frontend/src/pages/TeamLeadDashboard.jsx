@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-// sessionApi not needed in this simplified view
 import { toast } from 'react-toastify';
 import useSession from '../hooks/useSession';
 import Timer from '../components/Timer';
 import { formatTime, durationSeconds } from '../utils/time';
 import { connectSocket, disconnectSocket } from '../context/socket';
 import createIdleTracker from '../utils/idle';
-
+import './employeeHome.css';
 export default function TeamLeadDashboard() {
   const qc = useQueryClient();
   const token = qc.getQueryData(['token']) || localStorage.getItem('token');
