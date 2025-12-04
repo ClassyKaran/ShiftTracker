@@ -333,105 +333,129 @@ export default function Dashboard() {
           </div>
 
           {/* <!-- Tabs Container --> */}
-          <div class=" bg-white  p-2 mb-2 rounded">
-            <div class="d-flex gap-3">
-              <div class="tab-item active " role="button" onClick={() => handleOpenPopup('all')}>
-                <span>All </span>
-                <span
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    background: "#307feeff",
-                  }}
-                >
-                  {stats.totalUsers}
-                </span>
-              </div>
+        
+<div className="container-fluid p-3">
+    {/* 'row-cols-1' (sm के लिए), 'row-cols-md-2' (md के लिए), 'row-cols-lg-3' (lg और ऊपर के लिए) का उपयोग करके Responsive Grid सेट करें। */}
+    {/* 'g-3' ग्रिड के बीच गैप (g-x और g-y) के लिए है। */}
+    <div className="row g-3">
 
-              <div class="tab-item" role="button" onClick={() => handleOpenPopup('online')}>
-                <span>Online </span>
-                <span 
-                
-                     style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    background: "#2ecc71",
-                  }}
-                
-                >{stats.onlineUsers}</span>
-              </div>
-
-              <div class="tab-item" role="button" onClick={() => handleOpenPopup('disconnected')}>
-                <span>Disconnected </span>
-                <span 
-                 style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#ffffffff",
-                    borderRadius: "50%",
-                    background: "#fcce00ff",}}
-                >{stats.disconnected}</span>
-              </div>
-
-              <div class="tab-item" role="button" onClick={() => handleOpenPopup('offline')}>
-                <span>Offline </span>
-                <span 
-                style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    background: "#e74c3c",
-                  }}
-                >{stats.offlineUsers }</span>
-              </div>
-
-              <div class="tab-item" role="button" onClick={() => handleOpenPopup('latejoin')}>
-                <span>Late Join </span>
-                <span 
-                style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    background: "#ff8000ff",
-                  }}
-                >{stats.lateJoinUsers||"0"}</span>
-              </div>
-
-
-              <div class="tab-item" role="button" onClick={() => handleOpenPopup('idle')}>
-                <span>Idle </span>
-                <span
-                style={{
-                    width: "24px",
-                    height: "24px",
-                    display: "inline-block",
-                    textAlign: "center",
-                    color: "#fff",
-                    borderRadius: "50%", 
-                    background: "#000000ff",
-                  }}
-                >{stats.idleUsers||"0"}</span>
-              </div>
-
+        {/* --- All Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-primary"
+                role="button"
+                onClick={() => handleOpenPopup('all')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-primary">All</h5>
+                    <span
+                        className="badge rounded-pill text-white bg-info p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.totalUsers}
+                    </span>
+                </div>
             </div>
-            
-          </div>
+        </div>
+
+        {/* --- Online Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-success"
+                role="button"
+                onClick={() => handleOpenPopup('online')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-success">Online</h5>
+                    <span
+                        className="badge rounded-pill text-white bg-success p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.onlineUsers}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {/* --- Disconnected Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-warning"
+                role="button"
+                onClick={() => handleOpenPopup('disconnected')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-warning">Disconnected</h5>
+                    <span
+                        className="badge rounded-pill text-dark bg-warning p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.disconnected}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {/* --- Offline Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-danger"
+                role="button"
+                onClick={() => handleOpenPopup('offline')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-danger">Offline</h5>
+                    <span
+                        className="badge rounded-pill text-white bg-danger p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.offlineUsers}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {/* --- Late Join Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-info"
+                role="button"
+                onClick={() => handleOpenPopup('latejoin')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-info">Late Join</h5>
+                    <span
+                        className="badge rounded-pill text-white bg-info p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.lateJoinUsers || "0"}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {/* --- Idle Users Card --- */}
+        <div className="col">
+            <div
+                className="card shadow-sm h-100 border-secondary"
+                role="button"
+                onClick={() => handleOpenPopup('idle')}
+            >
+                <div className="card-body d-flex justify-content-between align-items-center p-3">
+                    <h5 className="card-title mb-0 text-secondary">Idle</h5>
+                    <span
+                        className="badge rounded-pill text-white bg-secondary p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                    >
+                        {stats.idleUsers || "0"}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
         </div>
       )}
       {/* show add-user form only for admins */}

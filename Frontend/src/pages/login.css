@@ -1,8 +1,8 @@
 /* FULL PAGE LAYOUT */
 .auth-layout{
   height: 83vh;
+  background: linear-gradient(to bottom right, #ffffff, #dce3f5);
 
-  background: #f7f9ffdc;
 }
 
 /* LEFT SIDE UI (white card look but full height) */

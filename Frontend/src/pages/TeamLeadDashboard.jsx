@@ -1,31 +1,54 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
-import useSession from '../hooks/useSession';
-import Timer from '../components/Timer';
-import { formatTime, durationSeconds } from '../utils/time';
-import { connectSocket, disconnectSocket } from '../context/socket';
-import createIdleTracker from '../utils/idle';
-import './employeeHome.css';
+import React, { useEffect, useState, useRef } from "react";
+import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+import { connectSocket, disconnectSocket } from "../context/socket";
+import useSession from "../hooks/useSession";
+import Timer from "../components/Timer";
+import createIdleTracker from "../utils/idle";
+import "./employeeHome.css";
+import { formatTime, durationSeconds } from "../utils/time";
+
 export default function TeamLeadDashboard() {
   const qc = useQueryClient();
-  const token = qc.getQueryData(['token']) || localStorage.getItem('token');
-  
+  const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
+
   const { start, end } = useSession();
   const [session, setSession] = useState(null);
-  const [deviceType, setDeviceType] = useState('Unknown');
+  const [deviceType, setDeviceType] = useState("Unknown");
   const [loading, setLoading] = useState(false);
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [endedSession, setEndedSession] = useState(null);
   const socketRef = useRef(null);
+  const user = qc.getQueryData(["user"]) || {};
+  const userDisplay =
+    user?.name || user?.displayName || user?.employeeId || user?.email || "You";
 
-  // Device detection
+  useEffect(() => {
+    if (!session?.lastActivity) {
+      setIdleSeconds(0);
+      return;
+    }
+
+    const update = () => {
+      try {
+        setIdleSeconds(durationSeconds(session.lastActivity));
+      } catch (err) {
+        void err;
+      }
+    };
+
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [session?.lastActivity]);
+
   const detectDevice = () => {
-    const ua = navigator.userAgent || '';
-    if (/mobile/i.test(ua)) return 'Mobile';
-    if (/tablet/i.test(ua)) return 'Tablet';
-    return 'Desktop';
+    const ua = navigator.userAgent || "";
+    if (/mobile/i.test(ua)) return "Mobile";
+    if (/tablet/i.test(ua)) return "Tablet";
+    return "Desktop";
   };
 
-  // TeamLead: start shift explicitly from this page
   const handleStartShift = async () => {
     setLoading(true);
     try {
@@ -33,222 +56,229 @@ export default function TeamLeadDashboard() {
       setDeviceType(detected);
       const res = await start(token, { device: detected });
       setSession(res.session);
+
       try {
         const socket = connectSocket(token);
         socketRef.current = socket;
-        const idle = createIdleTracker(socket, { idleMs: 5 * 60 * 1000, heartbeatMs: 30 * 1000 });
+        const idle = createIdleTracker(socket, {
+          idleMs: 5 * 60 * 1000,
+          heartbeatMs: 30 * 1000,
+        });
         idle.start();
         window.__idleTracker = idle;
-      } catch (e) { void e; }
-      toast.success('Shift started');
-    } catch (e) {
-      console.error(e);
-      toast.error('Could not start shift');
-    } finally { setLoading(false); }
-  };
-
-  const handleEndShift = async () => {
-    setLoading(true);
-    try {
-      await end(token, session?._id);
-      setSession(null);
-      try { if (window.__idleTracker && typeof window.__idleTracker.stop === 'function') window.__idleTracker.stop(); } catch (e) { void e; }
-      try { disconnectSocket(); } catch (e) { void e; }
-      toast.success('Shift ended');
-    } catch (e) {
-      console.error(e);
-      toast.error('Could not end shift');
-    } finally { setLoading(false); }
-  };
-
-  // keep token available for API calls from start/end and HistoryTable
-  useEffect(() => {
-    // hydrate session from cache/server if present so shift persists across navigation
-    (async () => {
-      try {
-        const cached = qc.getQueryData(['activeSession']);
-        if (cached) { setSession(cached); return; }
-        const me = qc.getQueryData(['user']);
-        if (!me) return;
-        const api = await import('../api/sessionApi');
-        const active = await api.getActive(token).catch(() => null);
-        if (active && Array.isArray(active.users)) {
-          const mine = active.users.find(u => String(u._id) === String(me.id || me._id));
-          if (mine) setSession(mine);
-        }
-      } catch (e) { void e; }
-    })();
-    return () => {};
-  }, [qc, token]);
-
-
-function HistoryTable({ session, token }) {
-  const [logs, setLogs] = useState([]);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(5);
-  const [total, setTotal] = useState(0);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const fetchLogs = async (p = 1) => {
-    if (!token) return;
-    setLoading(true);
-    try {
-      const params = { page: p, limit };
-      if (from) params.from = new Date(from).toISOString();
-      if (to) {
-        const d = new Date(to);
-        d.setHours(23,59,59,999);
-        params.to = d.toISOString();
+      } catch (e) {
+        console.warn("socket init failed", e);
       }
-      const api = await import('../api/sessionApi');
-      const res = await api.getLogs(token, params);
-      setLogs(res.sessions || []);
-      setPage(res.page || p);
-      setTotal(res.total || 0);
+
+      toast.success("Shift started");
     } catch (e) {
-      console.error('fetchLogs', e);
+      console.error("start failed", e);
+      toast.error("Could not start shift");
     } finally {
       setLoading(false);
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchLogs(1); }, [session]);
+  const handleEndShift = async () => {
+    setLoading(true);
+    try {
+      const data = await end(token, session?._id);
+      // keep a reference to the ended session so UI can display logoutTime/totalDuration
+      setEndedSession(data && data.session ? data.session : null);
+      setSession(null);
+      try {
+        if (
+          window.__idleTracker &&
+          typeof window.__idleTracker.stop === "function"
+        )
+          window.__idleTracker.stop();
+      } catch (err) {
+        void err;
+      }
+      try {
+        disconnectSocket();
+      } catch (err) {
+        void err;
+      }
+      toast.success("Shift ended");
+    } catch (e) {
+      console.error("end failed", e);
+      toast.error("Could not end shift");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const applyFilters = () => fetchLogs(1);
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  useEffect(() => {
+    const handleUnload = () => {
+      try {
+        const s = qc.getQueryData(["activeSession"]) || session;
+        if (s && s._id) {
+          const payload = JSON.stringify({ sessionId: s._id, token });
+          const url =
+            (window.__REACT_APP_API__ ||
+              import.meta.env.VITE_API_BASE_URL ||
+              "http://localhost:5000") + "/api/session/end-beacon";
+
+          if (navigator.sendBeacon) navigator.sendBeacon(url, payload);
+          else {
+            navigator.fetch &&
+              navigator.fetch(url, {
+                method: "POST",
+                body: payload,
+                headers: { "Content-Type": "application/json" },
+                keepalive: true,
+              });
+          }
+        }
+      } catch (err) {
+        void err;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [session, qc, token]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cached = qc.getQueryData(["activeSession"]);
+        if (cached && cached.status === "online") {
+          setSession(cached);
+          return;
+        }
+        const user = qc.getQueryData(["user"]);
+        if (!user) return;
+      } catch (err) {
+        void err;
+      }
+    })();
+  }, [qc, token]);
 
   return (
-    <>
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="row g-2 align-items-end">
-            <div className="col-md-4">
-              <label className="form-label">Start Date</label>
-              <input value={from} onChange={e => setFrom(e.target.value)} type="date" className="form-control" />
-            </div>
-            <div className="col-md-4">
-              <label className="form-label">End Date</label>
-              <input value={to} onChange={e => setTo(e.target.value)} type="date" className="form-control" />
-            </div>
-            <div className="col-md-4">
-              <button className="btn btn-primary w-100" onClick={applyFilters}>Apply Filters</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-hover mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Date</th>
-                  <th>Login</th>
-                  <th>Logout</th>
-                  <th>Duration</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (<tr><td colSpan={5} className="text-center">Loading...</td></tr>)}
-                {!loading && logs.length === 0 && (<tr><td colSpan={5} className="text-center">No records</td></tr>)}
-                {!loading && logs.map(s => (
-                  <tr key={s.sessionId}>
-                    <td>{new Date(s.loginTime).toLocaleDateString()}</td>
-                    <td>{formatTime(s.loginTime)}</td>
-                    <td>{s.logoutTime ? formatTime(s.logoutTime) : '--:--:--'}</td>
-                    <td>{s.totalDuration ? new Date(s.totalDuration * 1000).toISOString().substr(11,8) : (s.status==='online' && s.loginTime ? new Date(durationSeconds(s.loginTime)*1000).toISOString().substr(11,8) : '00:00:00')}</td>
-                    <td><span className={`badge ${s.status==='online' ? 'bg-success' : s.status==='offline' ? 'bg-secondary' : 'bg-warning'}`}>{s.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="card-footer d-flex justify-content-between align-items-center">
-          <div>Showing page {page} of {totalPages} — {total} records</div>
+    <div className="employee-home">
+      <div className="container">
+        <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <button className="btn btn-sm btn-outline-secondary me-2" disabled={page<=1} onClick={() => fetchLogs(page-1)}>Prev</button>
-            <button className="btn btn-sm btn-outline-secondary" disabled={page>=totalPages} onClick={() => fetchLogs(page+1)}>Next</button>
+            <h2 className="fw-bold mb-0">Tracking Your Shift</h2>
+            <div className="text-muted">{userDisplay}</div>
           </div>
         </div>
-      </div>
-    </>
-  );
-}
-  return (
-    <div>
-      <h3>TeamLead Shift Tracker</h3>
-      <p className="text-muted">Start/end your shift and view your shift history below.</p>
 
-      <div className="container py-4">
-        <div className="row justify-content-center">
-          <div className="col-lg-8 col-md-10 col-12">
-            <div className="card shadow-sm mb-4">
-              <div className="card-body">
-                <div className="d-flex align-items-center mb-3">
-                  <i className="bi bi-person-circle fs-2 text-primary me-3" />
-                  <div>
-                    <h4 className="mb-0">Shift Tracker</h4>
-                    <small className="text-muted">Start/end your shift from here</small>
-                  </div>
-                </div>
-
-                <div className="text-center mb-3">
-                  <button
-                    className={`btn btn-lg ${session ? 'btn-danger' : 'btn-success'} w-100 d-flex align-items-center justify-content-center gap-2`}
-                    onClick={session ? handleEndShift : handleStartShift}
-                    disabled={loading}
-                  >
-                    <i className={`bi ${session ? 'bi-stop-circle' : 'bi-play-circle-fill'}`} />
-                    <span className="fs-5">{session ? 'End Shift' : 'Start Shift'}</span>
-                  </button>
-                </div>
-
-                <div className="row g-2">
-                  <div className="col-6">
-                    <div className="border rounded-3 p-2 text-center">
-                      <div className="text-muted small">Device</div>
-                      <div className="fw-bold">{deviceType}</div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="border rounded-3 p-2 text-center">
-                      <div className="text-muted small">Location</div>
-                      <div className="fw-bold">{session?.locationName || session?.location || '-'}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 d-flex justify-content-between align-items-center">
-                  <div>
-                    <div className="text-muted small">Active Time</div>
-                    <div className="fw-bold">{session?.loginTime ? <Timer start={session.loginTime} /> : '-'}</div>
-                  </div>
-                  <div>
-                    <button className="btn btn-outline-secondary" onClick={async () => {
-                      try {
-                        if (session && session._id) await end(token, session._id);
-                        try { disconnectSocket(); } catch (e) { void e; }
-                        window.location.href = '/login';
-                      } catch (e) { void e; toast.error('Logout failed'); }
-                    }}>
-                      <i className="bi bi-box-arrow-right me-1"/> Logout
-                    </button>
-                  </div>
-                </div>
-
+        <div className="row g-4">
+          {/* LEFT STATUS BOXES */}
+          <div className="col-lg-4">
+            <div className="eh-metric">
+              <div className="label">Status</div>
+              <div
+                className="value"
+                style={{ color: session ? "#21c45a" : "#777" }}
+              >
+                ● {session ? "Online" : "Offline"}
               </div>
             </div>
 
-            <div className="card">
-              <div className="card-body">
-                <h5 className="mb-3"><i className="bi bi-clock-history me-2 text-info"/> Shift History</h5>
-                <HistoryTable session={session} token={token} />
+            <div className="eh-metric">
+              <div className="label">Position</div>
+              <div className="value">{deviceType}</div>
+            </div>
+
+            <div className="eh-metric">
+              <div className="label">Location</div>
+              <div className="value">
+                {session?.locationName || session?.location || "-"}
+              </div>
+            </div>
+
+            <div className="eh-metric">
+              <div className="label">Idle Time</div>
+              <div className="value">
+                {session?.lastActivity
+                  ? session?.isIdle
+                    ? new Date(idleSeconds * 1000).toISOString().substr(11, 8)
+                    : "--"
+                  : endedSession?.lastActivity && endedSession?.logoutTime
+                  ? new Date(
+                      Math.max(
+                        0,
+                        Math.floor(
+                          (new Date(endedSession.logoutTime) -
+                            new Date(endedSession.lastActivity)) /
+                            1000
+                        )
+                      ) * 1000
+                    )
+                      .toISOString()
+                      .substr(11, 8)
+                  : "--"}
+              </div>
+            </div>
+          </div>
+
+          {/* CENTER CIRCLE TIMER */}
+          <div className="col-lg-4 ">
+            <div className="timer-circle">
+              <span>
+                {session?.loginTime ? (
+                  <Timer start={session.loginTime} />
+                ) : (
+                  "00:00:00"
+                )}
+              </span>
+              <small>Active Session</small>
+            </div>
+
+            <div className="text-center mt-5">
+              <button
+                className={`eh-start-btn ${session ? "eh-end-btn" : ""}`}
+                onClick={session ? handleEndShift : handleStartShift}
+                disabled={loading}
+              >
+                {session ? "End Shift" : "Start Shift"}
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT INFO BOXES */}
+          <div className="col-lg-4">
+            <div className="eh-metric">
+              <div className="label">Login Time</div>
+              <div className="value">
+                {session?.loginTime
+                  ? formatTime(session.loginTime)
+                  : endedSession?.loginTime
+                  ? formatTime(endedSession.loginTime)
+                  : "--"}
+              </div>
+            </div>
+            <div className="eh-metric">
+              <div className="label">LogOut Time</div>
+              <div className="value">
+                {session?.logoutTime
+                  ? formatTime(session.logoutTime)
+                  : endedSession?.logoutTime
+                  ? formatTime(endedSession.logoutTime)
+                  : "--"}
+              </div>
+            </div>
+            <div className="eh-metric">
+              <div className="label">Expected End Time</div>
+              <div className="value">06:30 PM</div>
+            </div>
+
+            <div className="eh-metric">
+              <div className="label">Total Duration</div>
+              <div className="value">
+                {session?.loginTime && !session?.logoutTime
+                  ? new Date(durationSeconds(session.loginTime) * 1000)
+                      .toISOString()
+                      .substr(11, 8)
+                  : endedSession?.totalDuration
+                  ? new Date(endedSession.totalDuration * 1000)
+                      .toISOString()
+                      .substr(11, 8)
+                  : "--"}
               </div>
             </div>
           </div>

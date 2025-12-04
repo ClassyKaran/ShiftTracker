@@ -1,479 +1,157 @@
-/* Employee Home Page Styles */
+/* Background Gradient */
 .employee-home {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 0;
+  height: 85vh;
+  background: linear-gradient(to bottom right, #ffffff, #dce3f5);
+  padding: 20px;
 }
 
+/* Page Container */
 .eh-top-card {
-  border: none;
   border-radius: 20px;
-  overflow: hidden;
   background: white;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+  padding: 25px;
 }
 
-@media (min-width: 768px) {
-  .eh-top-card {
-    flex-direction: row;
-  }
-}
-
-.eh-left {
-  flex: 2;
-  padding: 2rem;
-  border-right: 1px solid #e9ecef;
-}
-
-.eh-right {
-  flex: 1;
-  padding: 2rem;
-  background: #f8f9fa;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
+/* Header Title */
 .eh-brand {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #0080ff;
-  margin-bottom: 0.25rem;
-  
+  font-size: 28px;
+  font-weight: 600;
+  color: #222;
 }
 
 .eh-sub {
-  color: #6c757d;
-  font-size: 0.9rem;
-  line-height: 1.4;
-
-
+  font-size: 14px;
+  color: #666;
 }
 
+/* Start/End Button */
 .eh-start-btn {
-    
-  border: none;
-  border-radius: 50px;
-  padding: 12px 30px;
+  width: 200px;
+  border-radius: 12px;
   font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 160px;
-  justify-content: center;
+  padding: 12px 0;
+  transition: 0.3s;
+  border: none;
+  background: linear-gradient(45deg, #4facfe, #00f2fe);
   color: white;
-  text-decoration: none;
-  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .eh-start-btn:hover {
-    
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-.eh-start-btn i ,.spa {
-color: white;
-font-weight: 600;
+  transform: scale(1.05);
 }
 
 .eh-end-btn {
-  background: linear-gradient(45deg, #c90000, #ff1212);
-  color: white;
+  background: #ff5757 !important;
 }
 
-
-
-:root {
-
-  --eh-success-grad: linear-gradient(45deg, #006900, #00d700);
-}
-
+/* Small Info Boxes (Left Side) */
 .eh-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
 }
 
 .eh-metric {
-  text-align: center;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 10px;
-  border: 1px solid #e9ecef;
-  transition: all 0.3s ease;
-}
-
-.eh-metric:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 1rem;
+  background: white;
+  border-radius: 12px;
+  padding: 15px 20px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
 .eh-metric .label {
-  font-size: 0.8rem;
-  color: #6c757d;
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
+  font-size: 13px;
+  color: #555;
 }
 
 .eh-metric .value {
-  font-size: 1rem;
+  font-size: 18px;
   font-weight: 600;
-  color: #2c3e50;
+  margin-top: 6px;
 }
 
-/* History Table Styles */
-.table-responsive {
+/* Right Status Block */
+.eh-right {
+  border-left: 1px solid #eeeeee;
+}
+
+.eh-right .text-muted {
+  font-size: 14px;
+}
+
+.eh-right .btn {
+  border-radius: 10px;
+}
+
+/* Circle Timer UI (Middle) */
+.timer-circle {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: white;
+  margin: auto;
+  margin-top: 10px;
+  box-shadow:
+    0 0 0 10px rgba(79, 172, 254, 0.15),
+    0 0 0 18px rgba(0, 242, 254, 0.15);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.timer-circle span {
+  font-size: 32px;
+  font-weight: 600;
+  color: #222;
+}
+
+.timer-circle small {
+  font-size: 14px;
+  color: #777;
+}
+
+/* History Table */
+table {
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.table {
-  margin-bottom: 0;
-  border-collapse: collapse;
 }
 
 .table th {
-  background: #2c3e50;
-  color: white;
-  border: none;
-  padding: 1rem;
-  font-weight: 600;
-  text-align: left;
+  background: #f5f7ff !important;
 }
 
 .table td {
-  padding: 1rem;
-  vertical-align: middle;
-  border-color: #e9ecef;
-  background: white;
+  font-size: 14px;
 }
 
-.table tbody tr:hover {
-  background-color: #f8f9fa;
-}
-
-.badge {
-  padding: 0.5rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.badge.bg-success {
-  background: linear-gradient(45deg, #4c81af, #45a049);
-}
-
-.badge.bg-secondary {
-  background: linear-gradient(45deg, #6c757d, #5a6268);
-}
-
-.badge.bg-warning {
-  background: linear-gradient(45deg, #ffc107, #e0a800);
-}
-
-/* Loading Animation */
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-.loading {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* Status Styles */
-.status-online {
-  color: #08ff2d;
-  font-weight: 600;
-}
-
-.status-offline {
-  color: #6c757d;
-  font-weight: 600;
-}
-
-/* Responsive Design */
-@media (max-width: 767.98px) {
-  .employee-home {
-    padding: 10px 0;
-  }
-  
-  .eh-top-card {
-    margin: 0 -0.5rem;
-    border-radius: 15px;
-  }
-  
-  .eh-left, .eh-right {
-    padding: 1.5rem 1rem;
-  }
-  
-  .eh-metrics {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-  
-  .eh-start-btn {
-    width: 100%;
-    max-width: 200px;
-    margin: 0 auto;
-  }
-  
-  .eh-brand {
-    font-size: 1.5rem;
-  }
-  
-  .table-responsive {
-    font-size: 0.9rem;
-  }
-  
-  .table th,
-  .table td {
-    padding: 0.75rem 0.5rem;
-  }
-}
-
-/* Card hover effects */
+/* Filter Section */
 .card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: none;
   border-radius: 15px;
-  overflow: hidden;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
-}
-
-.card .card-body {
-  padding: 1.5rem;
-}
-
-/* Filter section styles */
-.form-label {
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.form-control {
-  border: 1px solid #dce1e6;
-  border-radius: 8px;
-  padding: 0.75rem;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-}
-
-.form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-/* Button Styles */
-.btn {
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  border: none;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
 }
 
 .btn-primary {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: linear-gradient(45deg, #4facfe, #00f2fe);
   border: none;
 }
 
-.btn-primary:hover {
-  background: linear-gradient(45deg, #5a6fd8, #6a42a0);
-  transform: translateY(-1px);
-}
-
-.btn-outline-secondary {
-  border: 1px solid #6c757d;
-  color: #6c757d;
+/* Pagination */
+.card-footer {
   background: transparent;
 }
 
-.btn-outline-secondary:hover {
-  background-color: #6c757d;
-  border-color: #6c757d;
-  color: white;
-  transform: translateY(-1px);
+button.btn-outline-secondary {
+  border-radius: 10px;
 }
 
-/* Pagination styles */
-.card-footer {
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  padding: 1rem 1.5rem;
-  font-size: 0.9rem;
-}
-
-/* Icon Styles */
-.bi {
-  font-size: 1.1em;
-}
-
-.bi-person-circle {
-  color: #667eea;
-}
-
-.bi-clock-history {
-  color: #667eea;
-}
-
-.bi-play-circle-fill, 
-.bi-stop-circle {
-  font-size: 1.2em;
-}
-
-.bi-box-arrow-right {
-  font-size: 0.9em;
-}
-
-/* Timer Animation */
-@keyframes timer-pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
-}
-
-.timer-active {
-  animation: timer-pulse 2s ease-in-out infinite;
-  color: #21c45a;
-  font-weight: 600;
-}
-
-/* Custom Scrollbar */
-.table-responsive::-webkit-scrollbar {
-  height: 6px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* No Records State */
-.text-center {
-  text-align: center;
-}
-
-/* Logout Button */
-.btn-outline-secondary.logout-btn {
-  border-color: #dc3545;
-  color: #dc3545;
-}
-
-.btn-outline-secondary.logout-btn:hover {
-  background-color: #dc3545;
-  color: white;
-}
-
-/* Filter Card */
-.card.mb-3 {
-  border-radius: 15px;
-  overflow: hidden;
-}
-
-/* Table Header Gradient */
-.table-light {
-  background: linear-gradient(135deg, #2c3e50, #34495e);
-}
-
-.table-light th {
-  border: none;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.8rem;
-}
-
-/* Mobile Specific Styles */
-@media (max-width: 575.98px) {
-  .container.p-2 {
-    padding: 0.5rem !important;
-  }
-  
-  .card-body {
-    padding: 1rem;
-  }
-  
-  .eh-metric {
-    padding: 0.75rem 0.5rem;
-  }
-  
-  .eh-metric .value {
-    font-size: 0.9rem;
-  }
-  
-  .btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-  }
-}
-
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .employee-home {
-    background: linear-gradient(135deg, #2c3e50, #34495e);
-  }
-  
-  .card {
-    background: #2c3e50;
-    color: white;
-  }
-  
-  .table td {
-    background: #2c3e50;
-    color: white;
-    border-color: #34495e;
-  }
-  
-  .form-control {
-    background: #34495e;
-    border-color: #4a5f7a;
-    color: white;
-  }
-  
-  .form-control:focus {
-    background: #34495e;
-    color: white;
-  }
-}
-
-/* Print Styles */
-@media print {
-  .employee-home {
-    background: white !important;
-  }
-  
-  .btn {
-    display: none !important;
-  }
-  
-  .card {
-    box-shadow: none !important;
-    border: 1px solid #ddd !important;
+/* Responsive Improvement */
+@media (max-width: 768px) {
+  .timer-circle {
+    width: 200px;
+    height: 200px;
   }
 }

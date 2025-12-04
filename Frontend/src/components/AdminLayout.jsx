@@ -42,6 +42,24 @@ export default function AdminLayout() {
             <i className="bi bi-people me-2"></i>
             Team Section
           </NavLink>
+         
+         
+
+
+          <NavLink
+            to="/dashboard/exportcsv"
+            className={({ isActive }) =>
+              `nav-link d-flex align-items-center  py-2 mb-2  ${
+                isActive ? "active text-white bg-primary" : "text-dark bg-white"
+              }`
+            }
+          >
+            <i className="bi bi-files me-2"></i>
+            Export 
+          </NavLink>
+
+          
+         
         </nav>
 
         <div className="mt-auto small text-white opacity-75">
