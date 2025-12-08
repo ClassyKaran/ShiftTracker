@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.post('/start', auth, sessionController.start);
 router.post('/end', auth, sessionController.end);
+router.post('/activity', auth, sessionController.activity);
 // endpoint to support sendBeacon/keepalive where Authorization header may not be present
 router.post('/end-beacon', sessionController.endBeacon);
 router.get('/active', auth, sessionController.active);

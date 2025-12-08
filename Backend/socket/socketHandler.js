@@ -61,7 +61,16 @@ export default (io) => {
           lastActivity: s.lastActivity || null,
           isIdle: s.isIdle || false,
         }));
-        const counts = { online: usersOut.filter(u => u.status === 'online').length, offline: usersOut.filter(u => u.status === 'offline').length, disconnected: usersOut.filter(u => u.status === 'disconnected').length, total: usersOut.length };
+        // include global user counts (so admins see offline users even without recent sessions)
+        const totalUsers = await User.countDocuments();
+        const onlineUsers = await User.countDocuments({ isActive: true });
+        const counts = {
+          online: onlineUsers,
+          offline: Math.max(0, totalUsers - onlineUsers),
+          disconnected: usersOut.filter(u => u.status === 'disconnected').length,
+          idle: usersOut.filter(u => !!u.isIdle).length,
+          total: totalUsers,
+        };
         io.emit('users_list_update', { users: usersOut, counts, emittedAt: new Date() });
       } catch (e) {
         console.error('broadcastLatest error', e);
@@ -150,7 +159,15 @@ export default (io) => {
             lastActivity: s.lastActivity || null,
             isIdle: s.isIdle || false,
           }));
-          const counts = { online: usersOut.filter(u => u.status === 'online').length, offline: usersOut.filter(u => u.status === 'offline').length, disconnected: usersOut.filter(u => u.status === 'disconnected').length, total: usersOut.length };
+          const totalUsers = await User.countDocuments();
+          const onlineUsers = await User.countDocuments({ isActive: true });
+          const counts = {
+            online: onlineUsers,
+            offline: Math.max(0, totalUsers - onlineUsers),
+            disconnected: usersOut.filter(u => u.status === 'disconnected').length,
+            idle: usersOut.filter(u => !!u.isIdle).length,
+            total: totalUsers,
+          };
           return { users: usersOut, counts };
         } catch (e) {
           console.error('buildUsersPayload error', e);
@@ -181,7 +198,15 @@ export default (io) => {
               const total = s.status === 'online' ? Math.max(0, (Date.now() - new Date(s.loginTime)) / 1000) : (s.totalDuration || 0);
               return { _id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId, loginTime: s.loginTime, logoutTime: s.logoutTime || null, status: s.status, totalDuration: Math.floor(total), device: s.device || null, location: s.location || null, ip: s.ip || null, lastActivity: s.lastActivity || null, isIdle: s.isIdle || false };
             });
-          const counts2 = { online: users2.filter(u => u.status === 'online').length, offline: users2.filter(u => u.status === 'offline').length, disconnected: users2.filter(u => u.status === 'disconnected').length, total: users2.length };
+          const totalUsers2 = await User.countDocuments();
+          const onlineUsers2 = await User.countDocuments({ isActive: true });
+          const counts2 = {
+            online: onlineUsers2,
+            offline: Math.max(0, totalUsers2 - onlineUsers2),
+            disconnected: users2.filter(u => u.status === 'disconnected').length,
+            idle: users2.filter(u => !!u.isIdle).length,
+            total: totalUsers2,
+          };
           io.emit('users_list_update', { users: users2, counts: counts2, emittedAt: new Date() });
         } catch (e) {
           console.error('socket disconnect handler error', e);

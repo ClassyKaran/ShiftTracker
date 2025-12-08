@@ -40,8 +40,19 @@ export default function Dashboard() {
       users.filter(u => u.status === 'offline').forEach(u => pushUser(u, u.logoutTime));
       setPopupTitle('Offline users');
     } else if (type === 'latejoin') {
-      // show from alerts if available
-      (alerts?.lateJoin || []).forEach(a => rows.push({ name: a.user?.name || '-', employeeId: a.user?.employeeId || '', time: a.loginTime }));
+      // show unique recent late joiners (dedupe by user id) and sort by most recent
+      const late = alerts?.lateJoin || [];
+      const map = new Map();
+      late.forEach((a) => {
+        const uid = a.user?.id || a.user?._id || a.user?.employeeId || a.user?.employeeId;
+        const existing = map.get(uid);
+        const time = a.loginTime ? new Date(a.loginTime).getTime() : 0;
+        if (!existing || (existing.time || 0) < time) {
+          map.set(uid, { name: a.user?.name || '-', employeeId: a.user?.employeeId || '', time });
+        }
+      });
+      const uniq = Array.from(map.values()).sort((x, y) => (y.time || 0) - (x.time || 0));
+      uniq.forEach((u) => rows.push({ name: u.name, employeeId: u.employeeId, time: u.time ? new Date(u.time).toISOString() : null }));
       setPopupTitle('Late joiners');
     } else if (type === 'idle') {
       users.filter(u => !!u.isIdle).forEach(u => pushUser(u, u.lastActivity || u.loginTime));
@@ -262,12 +273,12 @@ export default function Dashboard() {
             if (data.counts) {
               setStats((prev) => ({
                 ...prev,
-                totalUsers: data.counts.total,
-                onlineUsers: data.counts.online,
-                offlineUsers: data.counts.offline,
-                disconnected: data.counts.disconnected,
-                idleUsers: data.counts.idle,
-                lateJoinUsers: data.counts.lateJoin,
+                totalUsers: data.counts.total ?? prev?.totalUsers ?? 0,
+                onlineUsers: data.counts.online ?? prev?.onlineUsers ?? 0,
+                offlineUsers: data.counts.offline ?? prev?.offlineUsers ?? 0,
+                disconnected: data.counts.disconnected ?? prev?.disconnected ?? 0,
+                idleUsers: data.counts.idle ?? prev?.idleUsers ?? 0,
+                lateJoinUsers: data.counts.lateJoin ?? prev?.lateJoinUsers ?? 0,
               }));
             }
           })();
@@ -584,12 +595,7 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
-       
       </div>
-
-
-     
-     
     </div>
   );
 }
@@ -602,38 +608,3 @@ export default function Dashboard() {
 
 
 
-
-  
-      {/* <div className=" container bg-white p-3 mt-3">
-        <div className="">
-          <h5>Recent Activity</h5>
-          <table className="table table-sm">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Action</th>
-                <th>Time</th>
-                <th>Device</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent.slice(0, 10).map((r) => (
-                <tr key={r.sessionId}>
-                  <td>{r.user?.name || "-"}</td>
-                  <td>
-                    {r.status === "online"
-                      ? "Login"
-                      : r.status === "offline"
-                      ? "Logout"
-                      : "Disconnected"}
-                  </td>
-                  <td>
-                    {r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}
-                  </td>
-                  <td>{r.device || r.ip || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div> */}

@@ -95,8 +95,8 @@
   margin: auto;
   margin-top: 10px;
   box-shadow:
-    0 0 0 10px rgba(79, 172, 254, 0.15),
-    0 0 0 18px rgba(0, 242, 254, 0.15);
+    0 0 0 10px rgb(79, 172, 254),
+    0 0 0 18px rgb(0, 241, 254);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -155,3 +155,35 @@ button.btn-outline-secondary {
     height: 200px;
   }
 }
+
+/* Idle / Active badge */
+.eh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.eh-badge .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.eh-badge.active {
+  background: rgba(33, 196, 90, 0.12);
+  color: #21c45a;
+}
+.eh-badge.active .dot { background: #21c45a; }
+.eh-badge.idle {
+  background: rgba(255, 165, 0, 0.08);
+  color: #d97706; /* orange */
+}
+.eh-badge.idle .dot { background: #d97706; }
+.eh-badge.offline {
+  background: rgba(120, 120, 120, 0.06);
+  color: #666;
+}
+.eh-badge.offline .dot { background: #888; }

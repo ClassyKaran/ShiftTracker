@@ -11,4 +11,6 @@ export const getStats = (token) => axios.get('/session/stats', authHeaders(token
 export const getAlerts = (token) => axios.get('/session/alerts', authHeaders(token)).then(r => r.data);
 export const exportLogsCSV = (token, params = {}) => axios.get('/session/export', { ...authHeaders(token), params, responseType: 'blob' }).then(r => r.data);
 
+export const activity = (token, body = {}) => axios.post('/session/activity', body, authHeaders(token)).then(r => r.data);
+
 export default {};

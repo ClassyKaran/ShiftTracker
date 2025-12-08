@@ -10,8 +10,14 @@ import teamleadRoutes from './routes/teamleadRoutes.js';
 import socketHandler from './socket/socketHandler.js';
 
 const app = express();
+
 const CORS_ORIGIN = process.env.CLIENT_URL;
-app.use(cors({ origin: CORS_ORIGIN, credentials: true, methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
+app.use(cors({ 
+  origin: CORS_ORIGIN,
+  credentials: true, 
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'], 
+  allowedHeaders: ['Content-Type','Authorization'] }));
+
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -23,7 +29,6 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: process.env.CLIENT_URL || '*' } });
 
-// socket handling
 socketHandler(io);
 
 try {

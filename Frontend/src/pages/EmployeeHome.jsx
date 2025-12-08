@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { connectSocket, disconnectSocket } from "../context/socket";
 import useSession from "../hooks/useSession";
 import Timer from "../components/Timer";
-import createIdleTracker from "../utils/idle";
+import Idle from "idle-js";
+import { activity } from "../api/sessionApi";
 import "./employeeHome.css";
 import { formatTime, durationSeconds } from "../utils/time";
 
@@ -19,6 +20,7 @@ export default function EmployeeHome() {
   const [idleSeconds, setIdleSeconds] = useState(0);
   const [endedSession, setEndedSession] = useState(null);
   const socketRef = useRef(null);
+  const heartbeatRef = useRef(null);
   const user = qc.getQueryData(["user"]) || {};
   const userDisplay =
     user?.name || user?.displayName || user?.employeeId || user?.email || "You";
@@ -60,11 +62,53 @@ export default function EmployeeHome() {
       try {
         const socket = connectSocket(token);
         socketRef.current = socket;
-        const idle = createIdleTracker(socket, {
-          idleMs: 5 * 60 * 1000,
-          heartbeatMs: 30 * 1000,
+        const sid = res.session ? res.session._id : null;
+        const idle = new Idle({
+          idle: 5 * 60 * 1000,
+          onIdle: () => {
+            try {
+              if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+                heartbeatRef.current = null;
+              }
+              setSession((prev) => (prev ? { ...prev, isIdle: true } : prev));
+            } catch (err) {
+              void err;
+            }
+          },
+          onActive: async () => {
+            try {
+              if (!sid) return;
+              await activity(token, { sessionId: sid });
+              setSession((prev) =>
+                prev ? { ...prev, isIdle: false, lastActivity: new Date().toISOString() } : prev
+              );
+              if (!heartbeatRef.current) {
+                heartbeatRef.current = setInterval(() => {
+                  try {
+                    activity(token, { sessionId: sid });
+                  } catch (e) {
+                    void e;
+                  }
+                }, 30 * 1000);
+              }
+            } catch (err) {
+              void err;
+            }
+          },
+          startAtIdle: false,
         });
         idle.start();
+        // start heartbeat immediately
+        if (res.session && res.session._id && !heartbeatRef.current) {
+          heartbeatRef.current = setInterval(() => {
+            try {
+              activity(token, { sessionId: res.session._id });
+            } catch (e) {
+              void e;
+            }
+          }, 30 * 1000);
+        }
         window.__idleTracker = idle;
       } catch (e) {
         console.warn("socket init failed", e);
@@ -87,11 +131,16 @@ export default function EmployeeHome() {
       setEndedSession(data && data.session ? data.session : null);
       setSession(null);
       try {
-        if (
-          window.__idleTracker &&
-          typeof window.__idleTracker.stop === "function"
-        )
+        if (window.__idleTracker && typeof window.__idleTracker.stop === "function")
           window.__idleTracker.stop();
+      } catch (err) {
+        void err;
+      }
+      try {
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
       } catch (err) {
         void err;
       }
@@ -162,7 +211,10 @@ export default function EmployeeHome() {
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
             <h2 className="fw-bold mb-0">Tracking Your Shift</h2>
-            <div className="text-muted">{userDisplay}</div>
+            <div className="d-flex align-items-center">
+              <div className="text-muted me-3">{userDisplay}</div>
+           
+            </div>
           </div>
         </div>
 

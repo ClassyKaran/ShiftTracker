@@ -1,3 +1,5 @@
+
+
 import { StrictMode } from 'react'
 import App from './App.jsx'
 import ReactDOM from 'react-dom/client'
@@ -11,14 +13,14 @@ import { BrowserRouter } from 'react-router-dom'
 const queryClient = new QueryClient()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
- 
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter
+      future={{
+        v7_relativeSplatPath: true
+      }}
+    >
+      <App />
+    </BrowserRouter>
+  </QueryClientProvider>
 )
-
-
 

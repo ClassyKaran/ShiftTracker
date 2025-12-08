@@ -1,10 +1,3 @@
-/**
- * Session Controller - MERGED & FIXED
- * - Adds: loginTime on start, /activity endpoint, idle watcher, disconnect watcher,
- *   daily cleanup, archive, safe reverse geocode, improved CSV streaming.
- *
- * Drop into controllers folder. Requires Session & User models and optional node-cron.
- */
 
 import Session from "../models/Session.js";
 import User from "../models/User.js";
@@ -22,7 +15,7 @@ try {
 // -------------------- CONFIG --------------------
 const CONFIG = {
   TIMEZONE: "Asia/Kolkata", // IST
-  IDLE_MINUTES: 15, // mark isIdle after this many minutes
+  IDLE_MINUTES: 5, // <-- changed to 5 minutes as requested
   DISCONNECT_MINUTES: 5, // disconnected -> offline after this many minutes
   ARCHIVE_DAYS: parseInt(process.env.ARCHIVE_DAYS || "90", 10),
   DELETE_ARCHIVE_DAYS: parseInt(process.env.DELETE_ARCHIVE_DAYS || "365", 10),
@@ -31,9 +24,9 @@ const CONFIG = {
   DAILY_CLEAN_MINUTE: 20,
   // Shift / break times in 24h local time (IST)
   SHIFT_START_HOUR: 10,
-  SHIFT_START_MIN: 30,
+  SHIFT_START_MIN: 30, // 10:30 start
   SHIFT_END_HOUR: 18,
-  SHIFT_END_MIN: 30,
+  SHIFT_END_MIN: 30, // 18:30 end
   MORNING_LATE_CUTOFF_MIN_AFTER_START: 5, // 10:35
   LUNCH_START_HOUR: 13,
   LUNCH_START_MIN: 0,
@@ -49,8 +42,6 @@ const CONFIG = {
 
 // -------------------- Helpers (IST-safe) --------------------
 function toIST(date = new Date()) {
-  // Returns a Date object that represents the same wall-clock instant in IST
-  // Implementation: format in IST then parse
   const s = date.toLocaleString("en-US", { timeZone: CONFIG.TIMEZONE });
   return new Date(s);
 }
@@ -69,6 +60,14 @@ function toISOStringSafe(d) {
   return d ? new Date(d).toISOString() : "";
 }
 
+function secondsBetween(a, b) {
+  return Math.max(0, Math.floor((new Date(b) - new Date(a)) / 1000));
+}
+
+/**
+ * computeTotalDuration(loginTime, logoutTime, fallback)
+ * - unchanged for compatibility: returns seconds between login & logout (or to now)
+ */
 function computeTotalDuration(loginTime, logoutTime, fallback = 0) {
   if (!loginTime) return fallback;
   if (!logoutTime)
@@ -77,6 +76,46 @@ function computeTotalDuration(loginTime, logoutTime, fallback = 0) {
     0,
     Math.floor((new Date(logoutTime) - new Date(loginTime)) / 1000)
   );
+}
+
+// clamp a timestamp into the same day's office window (IST)
+function clampToOfficeWindow(ts) {
+  if (!ts) return null;
+  const tIST = toIST(new Date(ts));
+  const y = tIST.getFullYear(), m = tIST.getMonth(), d = tIST.getDate();
+  const officeStart = new Date(y, m, d, CONFIG.SHIFT_START_HOUR, CONFIG.SHIFT_START_MIN, 0);
+  const officeEnd = new Date(y, m, d, CONFIG.SHIFT_END_HOUR, CONFIG.SHIFT_END_MIN, 0);
+  if (tIST < officeStart) return officeStart;
+  if (tIST > officeEnd) return officeEnd;
+  return tIST;
+}
+
+// add active seconds to session.totalDuration between fromTs and toTs, but only inside office window and respecting loginTime
+async function addActiveSeconds(session, fromTs, toTs) {
+  if (!session || !fromTs || !toTs) return 0;
+  // convert to Date
+  const from = new Date(fromTs);
+  const to = new Date(toTs);
+  if (to <= from) return 0;
+
+  // clamp both to office window of the day corresponding to 'from'
+  const fromClamped = clampToOfficeWindow(from);
+  const toClamped = clampToOfficeWindow(to);
+  if (!fromClamped || !toClamped) return 0;
+  if (toClamped <= fromClamped) return 0;
+
+  // also ensure we don't count before loginTime
+  const login = session.loginTime ? new Date(session.loginTime) : null;
+  const startCount = login && fromClamped < login ? login : fromClamped;
+
+  if (toClamped <= startCount) return 0;
+
+  const deltaSec = Math.floor((toClamped - startCount) / 1000);
+
+  // initialize totalDuration if absent
+  session.totalDuration = Math.max(0, parseInt(session.totalDuration || 0, 10));
+  session.totalDuration += deltaSec;
+  return deltaSec;
 }
 
 // safe reverse geocode with timeout
@@ -244,7 +283,7 @@ export const alerts = async (req, res) => {
 
     // extended shift: stored + currently live sessions > shift length
     const shiftSeconds =
-      CONFIG.SHIFT_END_HOUR * 3600 + CONFIG.SHIFT_END_MIN * 60 -
+      (CONFIG.SHIFT_END_HOUR * 3600 + CONFIG.SHIFT_END_MIN * 60) -
       (CONFIG.SHIFT_START_HOUR * 3600 + CONFIG.SHIFT_START_MIN * 60);
 
     const storedExtended = await Session.find({ totalDuration: { $gt: shiftSeconds } })
@@ -260,7 +299,7 @@ export const alerts = async (req, res) => {
 
     const onlineSessions = await Session.find({ status: "online" }).populate("userId", "name employeeId");
     onlineSessions.forEach((s) => {
-      const live = computeTotalDuration(s.loginTime, null);
+      const live = Math.max(0, parseInt(s.totalDuration || 0, 10) + computeTotalDuration(s.lastActivity || s.loginTime, null));
       if (live > shiftSeconds) extendedShift.push({ sessionId: s._id, user: s.userId ? { id: s.userId._id, name: s.userId.name, employeeId: s.userId.employeeId } : null, totalDuration: live });
     });
 
@@ -298,7 +337,7 @@ export const start = async (req, res) => {
       const createdIST = toIST(existing.createdAt || existing.loginTime || new Date());
       const todayStart = startOfDayIST();
       if (createdIST < todayStart) {
-        // close old
+        // close old: when closing old we must ensure active seconds already counted; here fallback
         existing.logoutTime = existing.lastActivity || existing.loginTime || new Date();
         existing.totalDuration = computeTotalDuration(existing.loginTime, existing.logoutTime);
         existing.status = "offline";
@@ -308,11 +347,13 @@ export const start = async (req, res) => {
     }
 
     if (existing) {
+      // resume existing session: mark online, reset idle, update lastActivity
       existing.ip = ip || existing.ip;
       existing.device = device || existing.device;
       existing.location = location || existing.location;
       existing.lastActivity = new Date();
       existing.isIdle = false;
+      // if existing was disconnected, don't retroactively count disconnected time - resume fresh
       existing.status = "online";
       await existing.save();
       user.isActive = true;
@@ -330,7 +371,25 @@ export const start = async (req, res) => {
       loginTime: now, // <--- added loginTime
       status: "online",
       isIdle: false,
+      totalDuration: 0, // track active-only seconds
     };
+
+    // Late detection: if login is after shift start + cutoff window (we'll mark isLate and lateByMin)
+    try {
+      const loginIST = toIST(now);
+      const y = loginIST.getFullYear(), m = loginIST.getMonth(), d = loginIST.getDate();
+      const officeStart = new Date(y, m, d, CONFIG.SHIFT_START_HOUR, CONFIG.SHIFT_START_MIN, 0);
+      if (loginIST > officeStart) {
+        sessionData.isLate = true;
+        const lateBySec = Math.floor((loginIST - officeStart) / 1000);
+        sessionData.lateByMin = Math.ceil(lateBySec / 60);
+      } else {
+        sessionData.isLate = false;
+        sessionData.lateByMin = 0;
+      }
+    } catch (e) {
+      /* ignore late calc errors */
+    }
 
     // attempt reverse geocode if location looks like coordinates
     try {
@@ -385,10 +444,25 @@ export const activity = async (req, res) => {
 
     if (!session) return res.status(400).json({ message: "No active session" });
 
-    session.lastActivity = new Date();
+    const now = new Date();
+
+    // If session was disconnected and activity arrives, treat as resume: set status online but DO NOT count disconnected gap.
+    if (session.status === "disconnected") {
+      session.status = "online";
+      // don't retroactively add time
+    }
+
+    // If session was online and not idle, then add seconds between previous lastActivity and now (active time)
+    try {
+      if (!session.isIdle && session.lastActivity) {
+        await addActiveSeconds(session, session.lastActivity, now);
+      }
+    } catch (e) {
+      console.warn("addActiveSeconds failed on activity", e && e.message);
+    }
+
+    session.lastActivity = now;
     session.isIdle = false; // reset idle on activity
-    // if previously disconnected but activity arrived, set to online
-    if (session.status === "disconnected") session.status = "online";
     await session.save();
 
     // ensure user is marked active
@@ -397,7 +471,7 @@ export const activity = async (req, res) => {
       await user.save();
     }
 
-    return res.json({ ok: true, sessionId: session._id });
+    return res.json({ ok: true, sessionId: session._id, totalDuration: session.totalDuration || 0 });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ message: "Failed to update activity" });
@@ -420,8 +494,21 @@ export const end = async (req, res) => {
 
     if (!session) return res.status(400).json({ message: "No active session" });
 
-    session.logoutTime = new Date();
-    session.totalDuration = computeTotalDuration(session.loginTime, session.logoutTime);
+    const now = new Date();
+    // before closing, add active seconds from lastActivity to now (clamped to office window)
+    try {
+      if (!session.isIdle && session.lastActivity) {
+        await addActiveSeconds(session, session.lastActivity, now);
+      }
+    } catch (e) {
+      console.warn("addActiveSeconds failed on end", e && e.message);
+    }
+
+    // set logoutTime as min(now, officeEnd)
+    const logoutClamped = clampToOfficeWindow(now) || now;
+    session.logoutTime = logoutClamped;
+    // ensure totalDuration is present
+    session.totalDuration = Math.max(0, parseInt(session.totalDuration || 0, 10));
     session.status = "offline";
     await session.save();
 
@@ -459,8 +546,20 @@ export const endBeacon = async (req, res) => {
 
     if (!session) return res.status(400).json({ message: "No active session" });
 
+    const now = new Date();
+    // When disconnecting, count active seconds up to now (if any) and then mark disconnected so further time won't be added
+    try {
+      if (!session.isIdle && session.lastActivity) {
+        await addActiveSeconds(session, session.lastActivity, now);
+      }
+    } catch (e) {
+      console.warn("addActiveSeconds failed on endBeacon", e && e.message);
+    }
+
     session.status = "disconnected";
-    session.lastActivity = new Date();
+    session.lastActivity = now;
+    // record disconnectedAt for reporting
+    session.disconnectedAt = now;
     await session.save();
 
     // keep user.isActive true until explicit end or disconnect watcher marks offline
@@ -526,10 +625,17 @@ export const active = async (req, res) => {
 
     const users = await Session.aggregate(pipeline);
     const usersWithTotal = users.map((s) => {
-      const total =
-        s.status === "online"
-          ? Math.max(0, Math.floor((Date.now() - new Date(s.loginTime)) / 1000))
-          : s.totalDuration || 0;
+      // if online, compute live additional active seconds from lastActivity to now (but do not exceed office end)
+      let total = Math.max(0, parseInt(s.totalDuration || 0, 10));
+      if (s.status === "online" && s.lastActivity) {
+        try {
+          const added = Math.floor((Math.min(Date.now(), clampToOfficeWindow(s.lastActivity)?.getTime() || Date.now()) - new Date(s.lastActivity).getTime()) / 1000);
+          // added may be 0; avoid negative
+          if (added > 0) total += added;
+        } catch (e) {
+          /* ignore */
+        }
+      }
       return { ...s, totalDuration: Math.floor(total) };
     });
 
@@ -571,25 +677,32 @@ export const logs = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((p - 1) * l)
       .limit(l);
-    const mapped = sessions.map((s) => ({
-      sessionId: s._id,
-      user: s.userId
-        ? {
-            id: s.userId._id,
-            name: s.userId.name,
-            employeeId: s.userId.employeeId,
-          }
-        : null,
-      loginTime: s.loginTime,
-      logoutTime: s.logoutTime || null,
-      totalDuration: s.totalDuration || 0,
-      status: s.status,
-      device: s.device || null,
-      location: s.location || null,
-      locationName: s.locationName || null,
-      ip: s.ip || null,
-      createdAt: s.createdAt,
-    }));
+    const mapped = sessions.map((s) => {
+      const totalSec = Math.max(0, parseInt(s.totalDuration || 0, 10));
+      const totalMin = Math.round(totalSec / 60);
+      const totalHoursDecimal = Number((totalSec / 3600).toFixed(2));
+      return ({
+        sessionId: s._id,
+        user: s.userId
+          ? {
+              id: s.userId._id,
+              name: s.userId.name,
+              employeeId: s.userId.employeeId,
+            }
+          : null,
+        loginTime: s.loginTime,
+        logoutTime: s.logoutTime || null,
+        totalDuration: totalSec,
+        totalMinutes: totalMin,
+        totalHours: totalHoursDecimal,
+        status: s.status,
+        device: s.device || null,
+        location: s.location || null,
+        locationName: s.locationName || null,
+        ip: s.ip || null,
+        createdAt: s.createdAt,
+      })
+    });
     const total = await Session.countDocuments(filter);
     return res.json({ sessions: mapped, page: p, limit: l, total });
   } catch (e) {
@@ -626,14 +739,18 @@ export const exportLogs = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(lim);
 
-    // stream small CSV
+    // stream CSV with readable hours/minutes
     const header = [
       "sessionId",
       "name",
       "employeeId",
       "loginTime",
       "logoutTime",
-      "totalDuration",
+      "totalDurationSeconds",
+      "totalMinutes",
+      "totalHoursDecimal",
+      "isLate",
+      "lateByMin",
       "status",
       "device",
       "location",
@@ -646,13 +763,20 @@ export const exportLogs = async (req, res) => {
     // write header
     res.write(header.join(",") + "\n");
     for (const s of sessions) {
+      const totalSec = Math.max(0, parseInt(s.totalDuration || 0, 10));
+      const totalMin = Math.round(totalSec / 60);
+      const totalHoursDecimal = Number((totalSec / 3600).toFixed(2));
       const row = {
         sessionId: s._id,
         name: s.userId ? s.userId.name : "",
         employeeId: s.userId ? s.userId.employeeId : "",
         loginTime: s.loginTime ? toISOStringSafe(s.loginTime) : "",
         logoutTime: s.logoutTime ? toISOStringSafe(s.logoutTime) : "",
-        totalDuration: s.totalDuration || 0,
+        totalDurationSeconds: totalSec,
+        totalMinutes: totalMin,
+        totalHoursDecimal,
+        isLate: s.isLate ? "true" : "false",
+        lateByMin: s.lateByMin || 0,
         status: s.status,
         device: s.device || "",
         location: s.location || "",
@@ -693,12 +817,20 @@ async function idleWatcher() {
     // mark online sessions with lastActivity < threshold as idle
     const toIdle = await Session.find({ status: "online", lastActivity: { $lt: threshold }, isIdle: { $ne: true } });
     for (const s of toIdle) {
+      // when marking idle, we do NOT add extra time (lastActivity already records last user interaction)
       s.isIdle = true;
+      s.idleStartedAt = s.lastActivity || new Date();
       await s.save();
     }
     // optional: mark isIdle false for those with recent activity
     const activeThreshold = new Date(Date.now() - (CONFIG.IDLE_MINUTES - 1) * 60 * 1000);
-    await Session.updateMany({ status: "online", lastActivity: { $gte: activeThreshold }, isIdle: true }, { $set: { isIdle: false } });
+    const toUnIdle = await Session.find({ status: "online", lastActivity: { $gte: activeThreshold }, isIdle: true });
+    for (const s of toUnIdle) {
+      // on resume from idle, record the idle end time for reporting
+      s.isIdle = false;
+      s.idleEndedAt = s.lastActivity || new Date();
+      await s.save();
+    }
   } catch (e) {
     console.error("idleWatcher failed", e);
   }
@@ -709,9 +841,11 @@ async function disconnectWatcher() {
     const threshold = new Date(Date.now() - CONFIG.DISCONNECT_MINUTES * 60 * 1000);
     const toOffline = await Session.find({ status: "disconnected", lastActivity: { $lt: threshold } });
     for (const s of toOffline) {
+      // session was disconnected and past threshold => finalize it as offline
+      // ensure we've already counted active time up to lastActivity (endBeacon/addActiveSeconds should have done it)
       s.status = "offline";
       s.logoutTime = s.lastActivity || new Date();
-      s.totalDuration = computeTotalDuration(s.loginTime, s.logoutTime);
+      s.totalDuration = Math.max(0, parseInt(s.totalDuration || 0, 10));
       await s.save();
       // keep user.isActive false only if no other online session exists
       const other = await Session.findOne({ userId: s.userId, status: "online" });
@@ -732,8 +866,16 @@ async function dailyCleanupTask() {
     const openQuery = { createdAt: { $lt: todayStart }, status: { $in: ["online", "disconnected"] } };
     const cursor = Session.find(openQuery).cursor();
     for (let s = await cursor.next(); s != null; s = await cursor.next()) {
+      // finalize old sessions: count active time up to lastActivity
+      try {
+        if (!s.isIdle && s.lastActivity) {
+          await addActiveSeconds(s, s.lastActivity, s.lastActivity); // no-op but safe
+        }
+      } catch (e) {
+        /* ignore */
+      }
       s.logoutTime = s.lastActivity || s.loginTime || new Date();
-      s.totalDuration = computeTotalDuration(s.loginTime, s.logoutTime);
+      s.totalDuration = Math.max(0, parseInt(s.totalDuration || 0, 10));
       s.status = "offline";
       await s.save();
       await User.findByIdAndUpdate(s.userId, { isActive: false });
