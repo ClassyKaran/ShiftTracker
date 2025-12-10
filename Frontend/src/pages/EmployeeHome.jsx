@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { toast } from "react-toastify";
+import useAuth from "../hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { connectSocket, disconnectSocket } from "../context/socket";
 import useSession from "../hooks/useSession";
@@ -12,7 +13,7 @@ import { formatTime, durationSeconds } from "../utils/time";
 export default function EmployeeHome() {
   const qc = useQueryClient();
   const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
-
+ const { logout } = useAuth();
   const { start, end } = useSession();
   const [session, setSession] = useState(null);
   const [deviceType, setDeviceType] = useState("Unknown");
@@ -99,7 +100,7 @@ export default function EmployeeHome() {
           startAtIdle: false,
         });
         idle.start();
-        // start heartbeat immediately
+
         if (res.session && res.session._id && !heartbeatRef.current) {
           heartbeatRef.current = setInterval(() => {
             try {
@@ -127,28 +128,25 @@ export default function EmployeeHome() {
     setLoading(true);
     try {
       const data = await end(token, session?._id);
-      // keep a reference to the ended session so UI can display logoutTime/totalDuration
+
       setEndedSession(data && data.session ? data.session : null);
       setSession(null);
+
       try {
-        if (window.__idleTracker && typeof window.__idleTracker.stop === "function")
-          window.__idleTracker.stop();
-      } catch (err) {
-        void err;
-      }
+        if (window.__idleTracker?.stop) window.__idleTracker.stop();
+      } catch {}
+
       try {
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
           heartbeatRef.current = null;
         }
-      } catch (err) {
-        void err;
-      }
+      } catch {}
+
       try {
         disconnectSocket();
-      } catch (err) {
-        void err;
-      }
+      } catch {}
+
       toast.success("Shift ended");
     } catch (e) {
       console.error("end failed", e);
@@ -171,18 +169,15 @@ export default function EmployeeHome() {
 
           if (navigator.sendBeacon) navigator.sendBeacon(url, payload);
           else {
-            navigator.fetch &&
-              navigator.fetch(url, {
-                method: "POST",
-                body: payload,
-                headers: { "Content-Type": "application/json" },
-                keepalive: true,
-              });
+            fetch(url, {
+              method: "POST",
+              body: payload,
+              headers: { "Content-Type": "application/json" },
+              keepalive: true,
+            });
           }
         }
-      } catch (err) {
-        void err;
-      }
+      } catch {}
     };
 
     window.addEventListener("beforeunload", handleUnload);
@@ -190,21 +185,92 @@ export default function EmployeeHome() {
   }, [session, qc, token]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const cached = qc.getQueryData(["activeSession"]);
-        if (cached && cached.status === "online") {
-          setSession(cached);
-          return;
-        }
-        const user = qc.getQueryData(["user"]);
-        if (!user) return;
-      } catch (err) {
-        void err;
+    try {
+      const cached = qc.getQueryData(["activeSession"]);
+      if (cached && cached.status === "online") {
+        setSession(cached);
       }
-    })();
+    } catch {}
   }, [qc, token]);
 
+  // ----------------------------------------------------------
+  // ⚡ SHIFT SUMMARY UI (ONLY SHOW AFTER END SHIFT)
+  // ----------------------------------------------------------
+  if (!session && endedSession) {
+    return (
+      <div className="shift-summary-wrapper">
+        <div className="summary-card container">
+
+          <h2 className="fw-bold mb-0">Shift Summary</h2>
+          <p className="text-muted">{userDisplay}</p>
+
+          <div className="row mt-4">
+
+            <div className="col-lg-4">
+              <div className="summary-box sb-blue">
+                <div className="s-label">Login Time</div>
+                <div className="s-value">{formatTime(endedSession.loginTime)}</div>
+              </div>
+
+              <div className="summary-box sb-pink">
+                <div className="s-label">Logout Time</div>
+                <div className="s-value">{formatTime(endedSession.logoutTime)}</div>
+              </div>
+
+              <div className="summary-box sb-green">
+                <div className="s-label"><i className="bi bi-clock"></i> Total Duration</div>
+                <div className="s-value">
+                  {new Date(endedSession.totalDuration * 1000)
+                    .toISOString()
+                    .substr(11, 8)}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-4 text-center">
+              <div className="summary-icon">
+                <i className="bi bi-check-circle-fill"></i>
+              </div>
+              <h4 className="mt-3 fw-bold">Shift Complete!</h4>
+              <p className="text-muted">Here’s your session summary</p>
+            </div>
+
+            <div className="col-lg-4">
+              <div className="summary-details-card">
+                <div className="">
+                  <div>
+                    <small className="text-muted">Employee</small>
+                    <div className="fw-semibold">{userDisplay}</div>
+                  </div>
+
+                   <div className="mt-3">
+                    <small className="text-muted">Position</small>
+                    <div className="fw-semibold">{deviceType}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <small className="text-muted">Location</small>
+                  <div className="fw-semibold">
+                    {endedSession.locationName || "Head Office"}
+                  </div>
+                </div>
+
+                <button className="confirm-exit-btn mt-3" onClick={logout}>
+                  Confirm & Exit
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------
+  // ORIGINAL UI BELOW (UNTOUCHED)
+  // ----------------------------------------------------------
   return (
     <div className="employee-home">
       <div className="container">
@@ -213,7 +279,6 @@ export default function EmployeeHome() {
             <h2 className="fw-bold mb-0">Tracking Your Shift</h2>
             <div className="d-flex align-items-center">
               <div className="text-muted me-3">{userDisplay}</div>
-           
             </div>
           </div>
         </div>

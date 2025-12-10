@@ -360,8 +360,8 @@ export default function Dashboard() {
                 <div className="card-body d-flex justify-content-between align-items-center p-3">
                     <h5 className="card-title mb-0 text-primary">All</h5>
                     <span
-                        className="badge rounded-pill text-white bg-info p-2"
-                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                        className="badge rounded-pill text-primary p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem", backgroundColor: "#b1daf7ff" }}
                     >
                         {stats.totalUsers}
                     </span>
@@ -373,14 +373,19 @@ export default function Dashboard() {
         <div className="col">
             <div
                 className="card shadow-sm h-100 border-success"
+               
+
+             // pastel green text contrast
+
+
                 role="button"
                 onClick={() => handleOpenPopup('online')}
             >
                 <div className="card-body d-flex justify-content-between align-items-center p-3">
                     <h5 className="card-title mb-0 text-success">Online</h5>
                     <span
-                        className="badge rounded-pill text-white bg-success p-2"
-                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                        className="badge rounded-pill text-success p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#d2faa7ff"  }}
                     >
                         {stats.onlineUsers}
                     </span>
@@ -396,10 +401,10 @@ export default function Dashboard() {
                 onClick={() => handleOpenPopup('disconnected')}
             >
                 <div className="card-body d-flex justify-content-between align-items-center p-3">
-                    <h5 className="card-title mb-0 text-warning">Disconnected</h5>
+                      <h5 className="card-title  mx-2 mb-0 text-warning">Disconnect</h5>
                     <span
-                        className="badge rounded-pill text-dark bg-warning p-2"
-                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                        className="badge rounded-pill text-warning  p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#f8fad0ff"  }}
                     >
                         {stats.disconnected}
                     </span>
@@ -417,8 +422,8 @@ export default function Dashboard() {
                 <div className="card-body d-flex justify-content-between align-items-center p-3">
                     <h5 className="card-title mb-0 text-danger">Offline</h5>
                     <span
-                        className="badge rounded-pill text-white bg-danger p-2"
-                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                        className="badge rounded-pill text-danger p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#f7c6aeff"  }}
                     >
                         {stats.offlineUsers}
                     </span>
@@ -436,8 +441,8 @@ export default function Dashboard() {
                 <div className="card-body d-flex justify-content-between align-items-center p-3">
                     <h5 className="card-title mb-0 text-info">Late Join</h5>
                     <span
-                        className="badge rounded-pill text-white bg-info p-2"
-                        style={{ minWidth: "30px", fontSize: "1rem" }}
+                        className="badge rounded-pill text-info p-2"
+                        style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#bfeafaff"  }}
                     >
                         {stats.lateJoinUsers || "0"}
                     </span>

@@ -91,7 +91,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(180deg, #8bdcf9f9 0%, #3470a1 100%);
   color: white;
   border: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
@@ -115,8 +115,8 @@
 .navbar .btn-outline-danger {
   border-radius: 10px;
   padding: 0.5rem 1rem;
-  border: 2px solid rgba(234, 78, 55, 0.2);
-  color: #ea4e37;
+  border: 2px solid rgba(82, 113, 225, 0.856);
+  color: #4986f0;
   font-weight: 600;
   font-size: 0.875rem;
   transition: all 0.3s ease;
@@ -125,11 +125,11 @@
 }
 
 .navbar .btn-outline-danger:hover {
-  background: linear-gradient(135deg, #ea4e37, #d8432a);
-  border-color: #ea4e37;
+  background: linear-gradient(135deg, #8fb1ec, #4d8cf9);
+  border-color: #88b0f6;
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(234, 78, 55, 0.3);
+ 
 }
 
 .navbar .btn-outline-danger:active {

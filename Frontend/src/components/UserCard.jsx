@@ -106,7 +106,7 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
               ? "bg-success"
               : user.status === "disconnected"
               ? "bg-warning"
-              : "bg-secondary"
+              : "bg-danger"
           }`}
         >
           {user.status}

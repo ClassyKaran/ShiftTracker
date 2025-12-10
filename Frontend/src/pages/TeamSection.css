@@ -1,107 +1,164 @@
+/* =========================
+   TEAM CONTAINER (MAIN BOX)
+   ========================= */
 .team-container {
   display: flex;
   width: 100%;
   min-height: 450px;
-  background: #fafafa;
-  border-radius: 10px;
+
+  /* 🔥 Modern soft gradient background */
+  background: linear-gradient(135deg, #eef2f9, #fafdff);
+
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+  /* Premium shadow */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+
+  backdrop-filter: blur(6px);
 }
- 
-/* LEFT SIDE - 40% */
+
+
+/* =====================
+   LEFT SIDEBAR (40%)
+   ===================== */
 .left-sidebar {
   width: 40%;
-  background: #ffffff;
-  padding: 20px;
-  border-right: 2px solid #e5e5e5;
+  padding: 22px;
+
+  /* Glassmorphism effect */
+  background: rgba(255, 255, 255, 0.9);
+  border-right: 2px solid rgba(200, 200, 200, 0.4);
+  backdrop-filter: blur(8px);
 }
- 
+
 .left-sidebar h2 {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
   font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
 }
- 
+
+
+/* TL LIST ITEMS */
 .tl-item {
-  padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+
+  background: white;
+  border: 1px solid #e5e7eb;
+
   cursor: pointer;
-  background: #fff;
-  transition: 0.3s;
+  transition: all 0.25s ease;
+
+  /* Soft shadow */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
- 
+
 .tl-item:hover {
-  background: #f0f0f0;
+  background: linear-gradient(135deg, #e9f1ff, #f3f8ff);
+  border-color: #bcd7ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
 }
- 
+
+/* Active Team Lead */
 .tl-item.active {
-  background: #dfefff;
-  border-color: #7bb2ff;
+  background: linear-gradient(135deg, #d7e7ff, #cfe2ff);
+  border-color: #6aa9ff;
+  box-shadow: 0 4px 12px rgba(0,119,255,0.18);
 }
- 
-/* RIGHT SIDE - 60% */
+
+
+/* =====================
+   RIGHT SECTION (60%)
+   ===================== */
 .right-section {
   width: 60%;
-  padding: 20px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
 }
- 
+
 .right-section h2 {
   margin-bottom: 15px;
+  color: #1f2937;
+  font-weight: 700;
 }
- 
+
 .no-selection {
-  color: gray;
-  font-size: 16px;
+  color: #6b7280;
+  font-size: 17px;
+  font-style: italic;
 }
- 
-.team-title {
-  margin-bottom: 15px;
-  color: #333;
-}
- 
-/* MEMBER CARD */
+
+
+/* =====================
+   MEMBER CARD DESIGN
+   ===================== */
 .member-card {
   display: flex;
   justify-content: space-between;
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  background: white;
-  margin-bottom: 12px;
   align-items: center;
+
+  padding: 16px;
+  margin-bottom: 14px;
+
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+
+  /* Smooth shadow */
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+
+  transition: all 0.25s ease;
 }
- 
+
+.member-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  border-color: #d0d7ff;
+}
+
 .member-name {
   font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
 }
- 
+
+
+/* STATUS BADGES */
 .status {
   font-size: 14px;
   margin-top: 5px;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
   display: inline-block;
+  font-weight: 600;
 }
- 
+
 .status.in {
   background: #d4f8d4;
   color: #1b7d1b;
   border: 1px solid #8ed88e;
 }
- 
+
 .status.out {
-  background: #ffe0e0;
-  color: #c11a1a;
-  border: 1px solid #e58c8c;
+  background: #ffe2e2;
+  color: #b91c1c;
+  border: 1px solid #ef9a9a;
 }
- 
+
 .timing-info p {
   margin: 3px 0;
-  color: #444;
+  color: #374151;
 }
- 
-/* RESPONSIVE */
+
+
+/* =====================
+   RESPONSIVE
+   ===================== */
 @media (max-width: 900px) {
   .team-container {
     flex-direction: column;

@@ -3,7 +3,15 @@ import { Outlet, NavLink } from "react-router-dom";
 
 export default function AdminLayout() {
   return (
-    <div className="d-flex"  style={{background:'#f7f9ffdc', height: "83vh", overflow: "hidden"}}>
+    <div
+  className="d-flex"
+  style={{
+    background: "#ebecede4",
+    height: "83vh",
+    overflow: "hidden"
+  }}
+>
+
       {/* style={{ height: "87vh", overflow: "hidden" }} */}
       {/* Sidebar */}
       <aside
@@ -62,9 +70,8 @@ export default function AdminLayout() {
          
         </nav>
 
-        <div className="mt-auto small text-white opacity-75">
-          © ShiftTracker
-        </div>
+        
+       
       </aside>
 
       {/* Main Content */}
