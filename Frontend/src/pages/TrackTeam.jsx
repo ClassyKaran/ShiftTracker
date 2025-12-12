@@ -190,48 +190,80 @@ export default function TrackTeam() {
         };
 
         return (
-          <div className="container-fluid py-2 ">
-            <div className="d-flex align-items-center mb-3">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <small className="text-muted">Track Filters</small>
-              </div>
+        <div className="container-fluid py-2">
+    
+    {/* Track Filters हेडिंग */}
+    <div className="mb-3">
+        <small className="text-muted">Track Filters</small>
+    </div>
+    
+    {/* Row कंटेनर, g-2 गैप के साथ */}
+    <div className="row g-2">
+        
+        {/* All Filter - Responsive Column */}
+        {/* LG पर 2 कॉलम की जगह, MD पर 4 कॉलम की जगह, SM पर पूरी रो */}
+        <div className="col-12 col-md-4 col-lg-2"> 
+            <div className="p-3 shadow-sm rounded border border-primary h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('all')}>
+                <span className="fw-bold text-primary">All</span>
+                <span className="badge rounded-pill text-white bg-info p-2" style={{ backgroundColor: '#307feeff' }}>
+                    {stats.total}
+                </span>
             </div>
+        </div>
 
-            <div className=" bg-white  p-2 mb-2 rounded">
-              <div className="d-flex gap-3">
-                <div className="tab-item active " role="button" onClick={() => handleOpenPopup('all')}>
-                  <span>All </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#307feeff' }}>{stats.total}</span>
-                </div>
-
-                <div className="tab-item" role="button" onClick={() => handleOpenPopup('online')}>
-                  <span>Online </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#2ecc71' }}>{stats.online}</span>
-                </div>
-
-                <div className="tab-item" role="button" onClick={() => handleOpenPopup('disconnected')}>
-                  <span>Disconnected </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#ffffffff', borderRadius: '50%', background: '#fcce00ff' }}>{stats.disconnected}</span>
-                </div>
-
-                <div className="tab-item" role="button" onClick={() => handleOpenPopup('offline')}>
-                  <span>Offline </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#e74c3c' }}>{stats.offline}</span>
-                </div>
-
-                <div className="tab-item" role="button" onClick={() => handleOpenPopup('latejoin')}>
-                  <span>Late Join </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#ff8000ff' }}>{stats.lateJoin || '0'}</span>
-                </div>
-
-                <div className="tab-item" role="button" onClick={() => handleOpenPopup('idle')}>
-                  <span>Idle </span>
-                  <span style={{ width: 24, height: 24, display: 'inline-block', textAlign: 'center', color: '#fff', borderRadius: '50%', background: '#000000ff' }}>{stats.idle || '0'}</span>
-                </div>
-
-              </div>
+        {/* Online Filter */}
+        <div className="col-12 col-md-4 col-lg-2">
+            <div className="p-3 shadow-sm rounded border border-success h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('online')}>
+                <span className="fw-bold text-success">Online</span>
+                <span className="badge rounded-pill text-white bg-success p-2">
+                    {stats.online}
+                </span>
             </div>
-          </div>
+        </div>
+
+        {/* Disconnected Filter */}
+        <div className="col-12 col-md-4 col-lg-2">
+            <div className="p-3 shadow-sm rounded border border-warning h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('disconnected')}>
+                <span className="fw-bold text-warning">Disconnect</span>
+                <span className="badge rounded-pill text-dark bg-warning p-2" style={{ backgroundColor: '#fcce00ff' }}>
+                    {stats.disconnected}
+                </span>
+            </div>
+        </div>
+
+        {/* Offline Filter */}
+        <div className="col-12 col-md-4 col-lg-2">
+            <div className="p-3 shadow-sm rounded border border-danger h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('offline')}>
+                <span className="fw-bold text-danger">Offline</span>
+                <span className="badge rounded-pill text-white bg-danger p-2">
+                    {stats.offline}
+                </span>
+            </div>
+        </div>
+
+        {/* Late Join Filter */}
+        <div className="col-12 col-md-4 col-lg-2">
+            <div className="p-3 shadow-sm rounded border border-info h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('latejoin')}>
+                <span className="fw-bold text-info">Late Join</span>
+                <span className="badge rounded-pill text-white p-2" style={{ backgroundColor: '#ff8000' }}>
+                    {stats.lateJoin || '0'}
+                </span>
+            </div>
+        </div>
+
+        {/* Idle Filter */}
+        <div className="col-12 col-md-4 col-lg-2">
+            <div className="p-3 shadow-sm rounded border border-secondary h-100 d-flex justify-content-between align-items-center" role="button" onClick={() => handleOpenPopup('idle')}>
+                <span className="fw-bold text-secondary">Idle</span>
+                <span className="badge rounded-pill text-white bg-dark p-2">
+                    {stats.idle || '0'}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
           
         );
       })()}

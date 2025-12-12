@@ -63,8 +63,8 @@ export default function Header() {
                 
                
                 <div
-                  className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
-                  style={{ width: 35, height: 35 }}
+                  className="rounded-circle  text-white d-flex align-items-center justify-content-center me-2"
+                 
                 >
                   {avatar}
                 </div>

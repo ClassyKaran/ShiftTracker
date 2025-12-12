@@ -109,22 +109,18 @@ export const ExportCsv = () => {
           </div>
 
           <div className="row g-3 align-items-end">
-            <div className="col-sm-6 col-md-3">
-              <label className="form-label">From</label>
+            <div className="col-sm-6 col-md-2">
               <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="form-control" />
             </div>
-            <div className="col-sm-6 col-md-3">
-              <label className="form-label">To</label>
+            <div className="col-sm-6 col-md-2">
               <input type="date" value={to} onChange={e => setTo(e.target.value)} className="form-control" />
             </div>
 
-            <div className="col-sm-6 col-md-3">
-              <label className="form-label">Employee ID (optional)</label>
-              <input value={employeeId} onChange={e => setEmployeeId(e.target.value)} placeholder="e.g. EMP123" className="form-control" />
+            <div className="col-sm-6 col-md-2">
+              <input value={employeeId} onChange={e => setEmployeeId(e.target.value)} placeholder="Emp Id" className="form-control" />
             </div>
 
             <div className="col-sm-6 col-md-3">
-              <label className="form-label">Status (optional)</label>
               <select value={status} onChange={e=>setStatus(e.target.value)} className="form-select">
                 <option value="">Any</option>
                 <option value="online">online</option>
@@ -133,7 +129,7 @@ export const ExportCsv = () => {
               </select>
             </div>
 
-            <div className="col-12 d-flex justify-content-end mt-2">
+            <div className="col-sm-6 col-md-3 d-flex ">
               <button className="btn btn-outline-secondary me-2" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setStatus(''); }} disabled={loading}>Reset</button>
               <button className="btn btn-primary" onClick={handleDownload} disabled={loading}>
                 {loading ? (
@@ -201,3 +197,7 @@ export const ExportCsv = () => {
 };
 
 export default ExportCsv;
+
+
+
+

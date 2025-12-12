@@ -317,10 +317,26 @@ export default function Dashboard() {
     // eslint-disable-next-line
   }, [sessionStarted]);
 
+  // derive display counts directly from the `users` array to match popup contents
+  const totalCount = users.length;
+  const onlineCount = users.filter((u) => u.status === 'online').length;
+  const disconnectedCount = users.filter((u) => u.status === 'disconnected').length;
+  const offlineCount = users.filter((u) => u.status === 'offline').length;
+  const idleCount = users.filter((u) => !!u.isIdle).length;
+  // dedupe lateJoin alerts by user id
+  const lateJoinCount = (() => {
+    const late = alerts?.lateJoin || [];
+    const setIds = new Set();
+    late.forEach((a) => {
+      const id = a.user?.id || a.user?._id || a.user?.employeeId || `${a.user?.employeeId}_${a.loginTime}`;
+      if (id) setIds.add(String(id));
+    });
+    return setIds.size;
+  })();
+
   return (
     <div>
-      {stats && (
-        <div class="container-fluid py-2 ">
+      <div className="container-fluid py-2 ">
           <div className="d-flex align-items-center mb-3">
             <h2 class="mb-0 me-3">Live Employee Tracking</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -363,7 +379,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-primary p-2"
                         style={{ minWidth: "30px", fontSize: "1rem", backgroundColor: "#b1daf7ff" }}
                     >
-                        {stats.totalUsers}
+                        {totalCount}
                     </span>
                 </div>
             </div>
@@ -387,7 +403,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-success p-2"
                         style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#d2faa7ff"  }}
                     >
-                        {stats.onlineUsers}
+                        {onlineCount}
                     </span>
                 </div>
             </div>
@@ -406,7 +422,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-warning  p-2"
                         style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#f8fad0ff"  }}
                     >
-                        {stats.disconnected}
+                        {disconnectedCount}
                     </span>
                 </div>
             </div>
@@ -425,7 +441,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-danger p-2"
                         style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#f7c6aeff"  }}
                     >
-                        {stats.offlineUsers}
+                        {offlineCount}
                     </span>
                 </div>
             </div>
@@ -444,7 +460,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-info p-2"
                         style={{ minWidth: "30px", fontSize: "1rem",backgroundColor: "#bfeafaff"  }}
                     >
-                        {stats.lateJoinUsers || "0"}
+                        {lateJoinCount || "0"}
                     </span>
                 </div>
             </div>
@@ -463,7 +479,7 @@ export default function Dashboard() {
                         className="badge rounded-pill text-white bg-secondary p-2"
                         style={{ minWidth: "30px", fontSize: "1rem" }}
                     >
-                        {stats.idleUsers || "0"}
+                        {idleCount || "0"}
                     </span>
                 </div>
             </div>
@@ -473,7 +489,6 @@ export default function Dashboard() {
 </div>
 
         </div>
-      )}
       {/* show add-user form only for admins */}
       {(() => {
         const user = qc.getQueryData(["user"]);
@@ -531,7 +546,7 @@ export default function Dashboard() {
               border: '1px solid rgba(0,0,0,0.06)',
             }}
           >
-            <div className="p-3 d-flex justify-content-between align-items-center border-bottom">
+            <div className="p-3 d-flex justify-content-between align-items-center border-bottom" style={{ position: 'sticky', top: 0, zIndex: 10002, background: 'white' }}>
               <div>
                 <strong>{popupTitle}</strong>
                 <div className="text-muted small">{popupRows.length} employee(s)</div>

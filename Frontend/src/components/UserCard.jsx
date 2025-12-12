@@ -82,7 +82,14 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
       </td>
 
       <td>{typeof user.device !== 'undefined' && user.device !== null && user.device !== '' ? user.device : '-'}</td>
-      <td>{user.role || 'employee'}</td>
+      {/* <td>{user.role}</td> */}
+      <td>
+  {(user.role || "")
+    .charAt(0)
+    .toUpperCase() + (user.role || "").slice(1)}
+</td>
+
+      {/* <td>{user.role.charAt(0).toUpperCase() + user.role.slice(1) || "-"}</td> */}
       <td>{typeof user.location !== 'undefined' && user.location !== null && user.location !== '' ? user.location : '-'}</td>
       <td>
         {user.loginTime ? new Date(user.loginTime).toLocaleString() : "-"}

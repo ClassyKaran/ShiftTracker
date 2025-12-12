@@ -134,18 +134,24 @@ export default function EmployeeHome() {
 
       try {
         if (window.__idleTracker?.stop) window.__idleTracker.stop();
-      } catch {}
+      } catch {
+        void 0;
+      }
 
       try {
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
           heartbeatRef.current = null;
         }
-      } catch {}
+      } catch{
+        void 0;
+      }
 
       try {
         disconnectSocket();
-      } catch {}
+      } catch {
+        void 0;
+      }
 
       toast.success("Shift ended");
     } catch (e) {
@@ -177,7 +183,9 @@ export default function EmployeeHome() {
             });
           }
         }
-      } catch {}
+      } catch {
+        void 0;
+      }
     };
 
     window.addEventListener("beforeunload", handleUnload);
@@ -190,7 +198,9 @@ export default function EmployeeHome() {
       if (cached && cached.status === "online") {
         setSession(cached);
       }
-    } catch {}
+    } catch {
+      void 0;
+    }
   }, [qc, token]);
 
   // ----------------------------------------------------------
@@ -274,14 +284,14 @@ export default function EmployeeHome() {
   return (
     <div className="employee-home">
       <div className="container">
-        <div className="d-flex justify-content-between align-items-start mb-3">
+        {/* <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
             <h2 className="fw-bold mb-0">Tracking Your Shift</h2>
             <div className="d-flex align-items-center">
               <div className="text-muted me-3">{userDisplay}</div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         <div className="row g-4">
           {/* LEFT STATUS BOXES */}
@@ -303,7 +313,7 @@ export default function EmployeeHome() {
 
             <div className="eh-metric">
               <div className="label">Location</div>
-              <div className="value">
+              <div className="value" style={{height:'40px',overflowY:'scroll'}}>
                 {session?.locationName || session?.location || "-"}
               </div>
             </div>
