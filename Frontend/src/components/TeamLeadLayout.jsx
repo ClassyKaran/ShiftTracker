@@ -13,7 +13,7 @@ export default function AdminLayout() {
     }
   }, []);
   return (
-    <div className="d-flex" style={{background:'#f7f9ffdc', height: "83vh", overflow: "hidden"}}>
+    <div className="d-flex" style={{background:'#cdcdcddc', height: "83vh", overflow: "hidden"}}>
       {/* style={{ height: "87vh", overflow: "hidden" }} */}
       {/* Sidebar */}
       <aside
@@ -54,9 +54,7 @@ export default function AdminLayout() {
           </NavLink>
         </nav>
 
-        <div className="mt-auto small text-white opacity-75">
-          © ShiftTracker
-        </div>
+       
       </aside>
 
       {/* Main Content */}

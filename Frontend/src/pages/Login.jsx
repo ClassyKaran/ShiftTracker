@@ -66,7 +66,6 @@ export default function Login() {
             <i className="bi bi-clock-history"></i> Real-Time Tracking System
           </button>
 
-          <p className="dev-info">Developed by: Kavya Infoweb Pvt. Ltd.</p>
         
         </div>
 
@@ -122,6 +121,7 @@ export default function Login() {
           </div>
         </div>
 
+          <p className=" mt-2 dev-info text-dark text-center">Developed by: Kavya Infoweb Pvt. Ltd.</p>
       </div>
     </div>
   );

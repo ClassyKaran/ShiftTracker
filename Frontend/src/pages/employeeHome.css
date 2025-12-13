@@ -2,6 +2,7 @@
 
 .employee-home {
 background: linear-gradient(to bottom right, #ffffff, #dce3f5); 
+height: 100vh;
   padding: 20px;
 }
 
@@ -210,10 +211,6 @@ button.btn-outline-secondary {
 }
 .eh-badge.offline .dot { background: #888; }
 
-
-.shift-summary-wrapper {
-  padding: 50px 0;
-}
 
 .summary-card {
   background: linear-gradient(to bottom, #ffffff, #e3e8f3);

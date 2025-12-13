@@ -277,7 +277,7 @@ export default function TrackTeam() {
                 >
                   <span className="fw-bold text-primary">All</span>
                   <span
-                    className="badge rounded-pill text-white bg-info p-2"
+                    className="badge rounded-pill text-white  p-2"
                     style={{ backgroundColor: "#307feeff" }}
                   >
                     {stats.total}
@@ -340,7 +340,7 @@ export default function TrackTeam() {
                   <span className="fw-bold text-info">Late Join</span>
                   <span
                     className="badge rounded-pill text-white p-2"
-                    style={{ backgroundColor: "#ff8000" }}
+                    style={{ backgroundColor: "#44abffff" }}
                   >
                     {stats.lateJoin || "0"}
                   </span>
