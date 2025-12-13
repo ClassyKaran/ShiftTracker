@@ -338,7 +338,7 @@ export default function Dashboard() {
     <div>
       <div className="container-fluid py-2 ">
           <div className="d-flex align-items-center mb-3">
-            <h2 class="mb-0 me-3">Live Employee Tracking</h2>
+            <h3 className="mb-0 fw-bold me-3">Live Employee Tracking</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span
                 style={{
@@ -531,28 +531,28 @@ export default function Dashboard() {
 
         {/* Right-side popup for filtered lists */}
         {popupOpen && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 72,
-              right: 16,
-              width: 360,
-              maxHeight: '70vh',
-              overflowY: 'auto',
-              background: 'white',
-              zIndex: 9999,
-              borderRadius: 8,
-              boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(0,0,0,0.06)',
-            }}
-          >
-            <div className="p-3 d-flex justify-content-between align-items-center border-bottom" style={{ position: 'sticky', top: 0, zIndex: 10002, background: 'white' }}>
+           <div
+          style={{
+            position: 'fixed',
+            top: 72,
+            right: 16,
+            width: 360,
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            background: 'white',
+            zIndex: 9999,
+            borderRadius: 8,
+            boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+            <div className="p-3 d-flex justify-content-between align-items-center border-bottom text-white" style={{background:'#84c1ffff'}}>
               <div>
                 <strong>{popupTitle}</strong>
-                <div className="text-muted small">{popupRows.length} employee(s)</div>
+                <div className=" small">{popupRows.length} employee(s)</div>
               </div>
               <div>
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => setPopupOpen(false)}>Close</button>
+                <button className="btn btn-sm btn-outline-light" onClick={() => setPopupOpen(false)}>X</button>
               </div>
             </div>
             <div className="p-2">

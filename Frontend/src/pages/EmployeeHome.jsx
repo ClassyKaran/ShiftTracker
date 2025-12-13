@@ -73,6 +73,13 @@ export default function EmployeeHome() {
                 heartbeatRef.current = null;
               }
               setSession((prev) => (prev ? { ...prev, isIdle: true } : prev));
+              try {
+                if (socketRef.current && socketRef.current.emit) {
+                  socketRef.current.emit('heartbeat', { isIdle: true, ts: Date.now() });
+                }
+              } catch (e) {
+                void e;
+              }
             } catch (err) {
               void err;
             }
@@ -80,14 +87,28 @@ export default function EmployeeHome() {
           onActive: async () => {
             try {
               if (!sid) return;
-              await activity(token, { sessionId: sid });
+              // Prefer socket heartbeat for instant server updates; fall back to HTTP activity
+              try {
+                if (socketRef.current && socketRef.current.connected && socketRef.current.emit) {
+                  socketRef.current.emit('heartbeat', { isIdle: false, ts: Date.now() });
+                } else {
+                  await activity(token, { sessionId: sid });
+                }
+              } catch (e) {
+                // fallback http
+                await activity(token, { sessionId: sid });
+              }
               setSession((prev) =>
                 prev ? { ...prev, isIdle: false, lastActivity: new Date().toISOString() } : prev
               );
               if (!heartbeatRef.current) {
                 heartbeatRef.current = setInterval(() => {
                   try {
-                    activity(token, { sessionId: sid });
+                    if (socketRef.current && socketRef.current.connected && socketRef.current.emit) {
+                      socketRef.current.emit('heartbeat', { isIdle: false, ts: Date.now() });
+                    } else {
+                      activity(token, { sessionId: sid });
+                    }
                   } catch (e) {
                     void e;
                   }
@@ -283,7 +304,7 @@ export default function EmployeeHome() {
   // ----------------------------------------------------------
   return (
     <div className="employee-home">
-      <div className="container">
+      <div className="container-fluid">
         {/* <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
             <h2 className="fw-bold mb-0">Tracking Your Shift</h2>
@@ -318,29 +339,7 @@ export default function EmployeeHome() {
               </div>
             </div>
 
-            <div className="eh-metric">
-              <div className="label">Idle Time</div>
-              <div className="value">
-                {session?.lastActivity
-                  ? session?.isIdle
-                    ? new Date(idleSeconds * 1000).toISOString().substr(11, 8)
-                    : "--"
-                  : endedSession?.lastActivity && endedSession?.logoutTime
-                  ? new Date(
-                      Math.max(
-                        0,
-                        Math.floor(
-                          (new Date(endedSession.logoutTime) -
-                            new Date(endedSession.lastActivity)) /
-                            1000
-                        )
-                      ) * 1000
-                    )
-                      .toISOString()
-                      .substr(11, 8)
-                  : "--"}
-              </div>
-            </div>
+           
           </div>
 
           {/* CENTER CIRCLE TIMER */}
@@ -379,7 +378,7 @@ export default function EmployeeHome() {
                   : "--"}
               </div>
             </div>
-            <div className="eh-metric">
+            {/* <div className="eh-metric">
               <div className="label">LogOut Time</div>
               <div className="value">
                 {session?.logoutTime
@@ -388,13 +387,39 @@ export default function EmployeeHome() {
                   ? formatTime(endedSession.logoutTime)
                   : "--"}
               </div>
-            </div>
+            </div> */}
             <div className="eh-metric">
               <div className="label">Expected End Time</div>
               <div className="value">06:30 PM</div>
             </div>
 
-            <div className="eh-metric">
+
+ <div className="eh-metric">
+              <div className="label">Idle Time</div>
+              <div className="value">
+                {session?.lastActivity
+                  ? session?.isIdle
+                    ? new Date(idleSeconds * 1000).toISOString().substr(11, 8)
+                    : "--"
+                  : endedSession?.lastActivity && endedSession?.logoutTime
+                  ? new Date(
+                      Math.max(
+                        0,
+                        Math.floor(
+                          (new Date(endedSession.logoutTime) -
+                            new Date(endedSession.lastActivity)) /
+                            1000
+                        )
+                      ) * 1000
+                    )
+                      .toISOString()
+                      .substr(11, 8)
+                  : "--"}
+              </div>
+            </div>
+
+
+            {/* <div className="eh-metric">
               <div className="label">Total Duration</div>
               <div className="value">
                 {session?.loginTime && !session?.logoutTime
@@ -407,7 +432,7 @@ export default function EmployeeHome() {
                       .substr(11, 8)
                   : "--"}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

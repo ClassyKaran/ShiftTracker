@@ -99,12 +99,11 @@ export const ExportCsv = () => {
 
   return (
     <div className="container py-4">
+              <h3 className="mb-3 fw-bold">Export Sessions CSV</h3>
       <div className="card shadow-sm">
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <h3 className="mb-0">Export Sessions CSV</h3>
-              <div className="text-muted small">Select a date range and optional filters to export session logs</div>
             </div>
           </div>
 
@@ -146,7 +145,7 @@ export const ExportCsv = () => {
               <h5 className="mb-0">Employee Records preview</h5>
               <div>
                 <button className="btn btn-outline-secondary me-2" onClick={fetchRecords} disabled={loadingRecords}>Show Records</button>
-                <button className="btn btn-sm btn-success" onClick={downloadAggregatedCsv} disabled={!aggregates || aggregates.length===0}>Download Aggregated CSV</button>
+                <button className="btn btn-outline-secondary" onClick={downloadAggregatedCsv} disabled={!aggregates || aggregates.length===0}>Download Aggregated CSV</button>
               </div>
             </div>
 

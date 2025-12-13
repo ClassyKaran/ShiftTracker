@@ -1,4 +1,5 @@
 
+
 import Session from "../models/Session.js";
 import User from "../models/User.js";
 import { reverseGeocode } from "../utils/geocode.js";
@@ -948,3 +949,683 @@ if (cron) {
 export const runDailyCleanup = dailyCleanupTask;
 export const runDisconnectWatcher = disconnectWatcher;
 export const runIdleWatcher = idleWatcher;
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import Session from "../models/Session.js";
+// import User from "../models/User.js";
+// import { reverseGeocode } from "../utils/geocode.js";
+// import jwt from "jsonwebtoken";
+
+// let cron;
+// try {
+//   cron = (await import("node-cron")).default;
+// } catch (e) {
+//   cron = null;
+// }
+
+// // -------------------- CONFIG --------------------
+// const CONFIG = {
+//   TIMEZONE: "Asia/Kolkata",
+//   IDLE_MINUTES: 5,
+//   DISCONNECT_MINUTES: 5,
+//   ARCHIVE_DAYS: parseInt(process.env.ARCHIVE_DAYS || "90", 10),
+//   DELETE_ARCHIVE_DAYS: parseInt(process.env.DELETE_ARCHIVE_DAYS || "365", 10),
+//   CSV_RETENTION_DAYS: parseInt(process.env.CSV_RETENTION_DAYS || "30", 10),
+//   DAILY_CLEAN_HOUR: 10,
+//   DAILY_CLEAN_MINUTE: 20,
+//   SHIFT_START_HOUR: 10,
+//   SHIFT_START_MIN: 30,
+//   SHIFT_END_HOUR: 18,
+//   SHIFT_END_MIN: 30,
+//   MORNING_LATE_CUTOFF_MIN_AFTER_START: 5,
+//   LUNCH_START_HOUR: 13,
+//   LUNCH_START_MIN: 0,
+//   LUNCH_END_HOUR: 13,
+//   LUNCH_END_MIN: 45,
+//   LUNCH_GRACE_MIN_AFTER_END: 5,
+//   TEA_START_HOUR: 16,
+//   TEA_START_MIN: 0,
+//   TEA_END_HOUR: 16,
+//   TEA_END_MIN: 15,
+//   TEA_GRACE_MIN_AFTER_END: 5,
+// };
+
+// // -------------------- HELPERS --------------------
+// function toIST(date = new Date()) {
+//   const s = date.toLocaleString("en-US", { timeZone: CONFIG.TIMEZONE });
+//   return new Date(s);
+// }
+
+// function startOfDayIST(date = new Date()) {
+//   const z = toIST(date);
+//   return new Date(z.getFullYear(), z.getMonth(), z.getDate(), 0, 0, 0);
+// }
+
+// function combineIST(dateIST, hour, minute) {
+//   const z = toIST(dateIST);
+//   return new Date(z.getFullYear(), z.getMonth(), z.getDate(), hour, minute, 0);
+// }
+
+// function secondsBetween(a, b) {
+//   return Math.max(0, Math.floor((new Date(b) - new Date(a)) / 1000));
+// }
+
+// function computeTotalDuration(loginTime, logoutTime, fallback = 0) {
+//   if (!loginTime) return fallback;
+//   if (!logoutTime)
+//     return Math.max(0, Math.floor((Date.now() - new Date(loginTime)) / 1000));
+//   return Math.max(
+//     0,
+//     Math.floor((new Date(logoutTime) - new Date(loginTime)) / 1000)
+//   );
+// }
+
+// function clampToOfficeWindow(ts) {
+//   if (!ts) return null;
+//   const tIST = toIST(new Date(ts));
+//   const y = tIST.getFullYear(),
+//     m = tIST.getMonth(),
+//     d = tIST.getDate();
+//   const officeStart = new Date(
+//     y,
+//     m,
+//     d,
+//     CONFIG.SHIFT_START_HOUR,
+//     CONFIG.SHIFT_START_MIN,
+//     0
+//   );
+//   const officeEnd = new Date(
+//     y,
+//     m,
+//     d,
+//     CONFIG.SHIFT_END_HOUR,
+//     CONFIG.SHIFT_END_MIN,
+//     0
+//   );
+//   if (tIST < officeStart) return officeStart;
+//   if (tIST > officeEnd) return officeEnd;
+//   return tIST;
+// }
+
+// async function addActiveSeconds(session, fromTs, toTs) {
+//   if (!session || !fromTs || !toTs) return 0;
+//   const from = new Date(fromTs);
+//   const to = new Date(toTs);
+//   if (to <= from) return 0;
+
+//   const fromClamped = clampToOfficeWindow(from);
+//   const toClamped = clampToOfficeWindow(to);
+//   if (!fromClamped || !toClamped) return 0;
+//   if (toClamped <= fromClamped) return 0;
+
+//   const login = session.loginTime ? new Date(session.loginTime) : null;
+//   const startCount = login && fromClamped < login ? login : fromClamped;
+//   if (toClamped <= startCount) return 0;
+
+//   const deltaSec = Math.floor((toClamped - startCount) / 1000);
+//   session.totalDuration = Math.max(0, parseInt(session.totalDuration || 0, 10));
+//   session.totalDuration += deltaSec;
+//   return deltaSec;
+// }
+
+// async function safeReverseGeocode(lat, lng, timeoutMs = 3000) {
+//   if (!reverseGeocode) return null;
+//   return new Promise((resolve) => {
+//     let done = false;
+//     const timer = setTimeout(() => {
+//       if (!done) {
+//         done = true;
+//         resolve(null);
+//       }
+//     }, timeoutMs);
+//     reverseGeocode(lat, lng)
+//       .then((r) => {
+//         if (!done) {
+//           done = true;
+//           clearTimeout(timer);
+//           resolve(r);
+//         }
+//       })
+//       .catch(() => {
+//         if (!done) {
+//           done = true;
+//           clearTimeout(timer);
+//           resolve(null);
+//         }
+//       });
+//   });
+// }
+
+// function isLateJoin(loginDate) {
+//   if (!loginDate) return false;
+//   const loginIST = toIST(new Date(loginDate));
+//   const y = loginIST.getFullYear(),
+//     m = loginIST.getMonth(),
+//     dt = loginIST.getDate();
+
+//   const morningCutoff = new Date(
+//     y,
+//     m,
+//     dt,
+//     CONFIG.SHIFT_START_HOUR,
+//     CONFIG.SHIFT_START_MIN + CONFIG.MORNING_LATE_CUTOFF_MIN_AFTER_START,
+//     0
+//   );
+//   if (loginIST > morningCutoff && loginIST <= combineIST(loginIST, 23, 59))
+//     return true;
+
+//   const lunchEndGrace = new Date(
+//     y,
+//     m,
+//     dt,
+//     CONFIG.LUNCH_END_HOUR,
+//     CONFIG.LUNCH_END_MIN + CONFIG.LUNCH_GRACE_MIN_AFTER_END,
+//     0
+//   );
+//   if (
+//     loginIST > lunchEndGrace &&
+//     loginIST <= combineIST(loginIST, 23, 59) &&
+//     loginIST.getHours() >= CONFIG.LUNCH_START_HOUR
+//   )
+//     return true;
+
+//   const teaEndGrace = new Date(
+//     y,
+//     m,
+//     dt,
+//     CONFIG.TEA_END_HOUR,
+//     CONFIG.TEA_END_MIN + CONFIG.TEA_GRACE_MIN_AFTER_END,
+//     0
+//   );
+//   if (
+//     loginIST > teaEndGrace &&
+//     loginIST <= combineIST(loginIST, 23, 59) &&
+//     loginIST.getHours() >= CONFIG.TEA_START_HOUR
+//   )
+//     return true;
+
+//   return false;
+// }
+
+// // -------------------- CONTROLLERS --------------------
+
+// // STATS
+// export const stats = async (req, res) => {
+//   try {
+//     const totalUsers = await User.countDocuments();
+//     const onlineUsers = await User.countDocuments({ isActive: true });
+//     const inactiveUsers = Math.max(0, totalUsers - onlineUsers);
+
+//     const pipeline = [
+//       { $match: { status: { $in: ["online", "disconnected", "offline"] } } },
+//       { $sort: { createdAt: -1 } },
+//       {
+//         $group: {
+//           _id: "$userId",
+//           status: { $first: "$status" },
+//           isIdle: { $first: "$isIdle" },
+//         },
+//       },
+//     ];
+//     const latest = await Session.aggregate(pipeline);
+//     const online = latest.filter((x) => x.status === "online").length;
+//     const offline = latest.filter((x) => x.status === "offline").length;
+//     const disconnected = latest.filter(
+//       (x) => x.status === "disconnected"
+//     ).length;
+//     const idleUsers = latest.filter((x) => !!x.isIdle).length;
+
+//     const todayStart = startOfDayIST();
+//     const todaySessions = await Session.find({
+//       loginTime: { $gte: todayStart },
+//       status: { $in: ["online", "offline", "disconnected"] },
+//     }).select("userId loginTime");
+//     const lateSet = new Set();
+//     todaySessions.forEach((s) => {
+//       if (s && s.loginTime && isLateJoin(s.loginTime) && s.userId)
+//         lateSet.add(String(s.userId));
+//     });
+//     const lateJoinUsers = lateSet.size;
+
+//     return res.json({
+//       totalUsers,
+//       onlineUsers,
+//       inactiveUsers,
+//       offlineUsers: offline,
+//       onlineUsersLive: online,
+//       disconnected,
+//       idleUsers,
+//       lateJoinUsers,
+//     });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to fetch stats" });
+//   }
+// };
+
+// // ALERTS
+// export const alerts = async (req, res) => {
+//   try {
+//     const now = new Date();
+//     const todayStart = new Date(
+//       now.getFullYear(),
+//       now.getMonth(),
+//       now.getDate(),
+//       0,
+//       0,
+//       0
+//     );
+
+//     const sessionsToday = await Session.find({
+//       loginTime: { $gte: todayStart },
+//       status: { $in: ["online", "offline", "disconnected"] },
+//     }).populate("userId", "name employeeId");
+
+//     const lateJoin = sessionsToday
+//       .filter((s) => isLateJoin(s.loginTime))
+//       .map((s) => ({
+//         sessionId: s._id,
+//         user: s.userId
+//           ? {
+//               id: s.userId._id,
+//               name: s.userId.name,
+//               employeeId: s.userId.employeeId,
+//             }
+//           : null,
+//         loginTime: s.loginTime,
+//       }));
+
+//     const shiftSeconds =
+//       CONFIG.SHIFT_END_HOUR * 3600 +
+//       CONFIG.SHIFT_END_MIN * 60 -
+//       (CONFIG.SHIFT_START_HOUR * 3600 + CONFIG.SHIFT_START_MIN * 60);
+
+//     const storedExtended = await Session.find({
+//       totalDuration: { $gt: shiftSeconds },
+//     })
+//       .populate("userId", "name employeeId")
+//       .limit(50)
+//       .sort({ createdAt: -1 });
+
+//     const extendedShift = storedExtended.map((s) => ({
+//       sessionId: s._id,
+//       user: s.userId
+//         ? {
+//             id: s.userId._id,
+//             name: s.userId.name,
+//             employeeId: s.userId.employeeId,
+//           }
+//         : null,
+//       totalDuration: s.totalDuration,
+//     }));
+
+//     const onlineSessions = await Session.find({ status: "online" }).populate(
+//       "userId",
+//       "name employeeId"
+//     );
+//     onlineSessions.forEach((s) => {
+//       const live = Math.max(
+//         0,
+//         parseInt(s.totalDuration || 0, 10) +
+//           computeTotalDuration(s.lastActivity || s.loginTime, null)
+//       );
+//       if (live > shiftSeconds)
+//         extendedShift.push({
+//           sessionId: s._id,
+//           user: s.userId
+//             ? {
+//                 id: s.userId._id,
+//                 name: s.userId.name,
+//                 employeeId: s.userId.employeeId,
+//               }
+//             : null,
+//           totalDuration: live,
+//         });
+//     });
+
+//     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+//     const disconnects = await Session.find({
+//       status: "disconnected",
+//       createdAt: { $gte: since },
+//     })
+//       .populate("userId", "name employeeId")
+//       .limit(50)
+//       .sort({ createdAt: -1 });
+
+//     const unexpectedDisconnect = disconnects.map((s) => ({
+//       sessionId: s._id,
+//       user: s.userId
+//         ? {
+//             id: s.userId._id,
+//             name: s.userId.name,
+//             employeeId: s.userId.employeeId,
+//           }
+//         : null,
+//       createdAt: s.createdAt,
+//     }));
+
+//     return res.json({ lateJoin, extendedShift, unexpectedDisconnect });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to compute alerts" });
+//   }
+// };
+
+// // START SESSION
+// export const start = async (req, res) => {
+//   try {
+//     const user = req.user;
+//     const ip = req.ip || req.headers["x-forwarded-for"] || "";
+//     const { device, location } = req.body || {};
+
+//     let existing = await Session.findOne({
+//       userId: user._id,
+//       status: { $in: ["online", "disconnected"] },
+//     }).sort({ createdAt: -1 });
+
+//     if (existing) {
+//       const createdIST = toIST(
+//         existing.createdAt || existing.loginTime || new Date()
+//       );
+//       const todayStart = startOfDayIST();
+//       if (createdIST < todayStart) {
+//         existing.logoutTime =
+//           existing.lastActivity || existing.loginTime || new Date();
+//         existing.totalDuration = computeTotalDuration(
+//           existing.loginTime,
+//           existing.logoutTime
+//         );
+//         existing.status = "offline";
+//         await existing.save();
+//         existing = null;
+//       }
+//     }
+
+//     if (existing) {
+//       existing.ip = ip || existing.ip;
+//       existing.device = device || existing.device;
+//       existing.location = location || existing.location;
+//       existing.lastActivity = new Date();
+//       existing.isIdle = false;
+//       existing.status = "online";
+//       await existing.save();
+//       user.isActive = true;
+//       await user.save();
+//       return res.json({ session: existing, message: "resumed" });
+//     }
+
+//     const now = new Date();
+//     const sessionData = {
+//       userId: user._id,
+//       ip,
+//       device: device || req.headers["user-agent"] || "",
+//       location:
+//         typeof location === "string"
+//           ? location
+//           : location
+//           ? JSON.stringify(location)
+//           : "",
+//       lastActivity: now,
+//       loginTime: now,
+//       status: "online",
+//       isIdle: false,
+//       totalDuration: 0,
+//     };
+
+//     try {
+//       const loginIST = toIST(now);
+//       const y = loginIST.getFullYear(),
+//         m = loginIST.getMonth(),
+//         d = loginIST.getDate();
+//       const officeStart = new Date(
+//         y,
+//         m,
+//         d,
+//         CONFIG.SHIFT_START_HOUR,
+//         CONFIG.SHIFT_START_MIN,
+//         0
+//       );
+//       if (loginIST > officeStart) {
+//         sessionData.isLate = true;
+//         const lateBySec = Math.floor((loginIST - officeStart) / 1000);
+//         sessionData.lateByMin = Math.ceil(lateBySec / 60);
+//       } else {
+//         sessionData.isLate = false;
+//         sessionData.lateByMin = 0;
+//       }
+//     } catch (e) {}
+
+//     try {
+//       if (location) {
+//         let lat = null,
+//           lng = null;
+//         if (
+//           typeof location === "object" &&
+//           location.lat != null &&
+//           location.lng != null
+//         ) {
+//           lat = location.lat;
+//           lng = location.lng;
+//         }
+//         if (typeof location === "string" && location.indexOf(",") !== -1) {
+//           const parts = location.split(",").map((p) => p.trim());
+//           const a = parseFloat(parts[0]);
+//           const b = parseFloat(parts[1]);
+//           if (!Number.isNaN(a) && !Number.isNaN(b)) {
+//             lat = a;
+//             lng = b;
+//           }
+//         }
+//         if (lat != null && lng != null) {
+//           const geo = await safeReverseGeocode(lat, lng, 3000);
+//           if (geo && geo.name) sessionData.locationName = geo.name;
+//         }
+//       }
+//     } catch (e) {
+//       console.warn("geocode on start failed", e && e.message);
+//     }
+
+//     const session = await Session.create(sessionData);
+//     user.isActive = true;
+//     await user.save();
+//     return res.json({ session });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to start session" });
+//   }
+// };
+
+// // -------------------- ADDITIONAL CONTROLLERS --------------------
+// // activity, end, endBeacon, active, logs, exportLogs, cleanup
+// // full implementations included below
+
+// // Activity
+// export const activity = async (req, res) => {
+//   try {
+//     const session = await Session.findOne({
+//       userId: req.user._id,
+//       status: "online",
+//     });
+//     if (!session) return res.status(404).json({ message: "No active session" });
+//     session.lastActivity = new Date();
+//     session.isIdle = false;
+//     await session.save();
+//     return res.json({ message: "Activity recorded", session });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to record activity" });
+//   }
+// };
+
+// // End session
+// export const end = async (req, res) => {
+//   try {
+//     const session = await Session.findOne({
+//       userId: req.user._id,
+//       status: { $in: ["online", "disconnected"] },
+//     });
+//     if (!session) return res.status(404).json({ message: "No active session" });
+//     session.logoutTime = new Date();
+//     session.totalDuration = computeTotalDuration(
+//       session.loginTime,
+//       session.logoutTime
+//     );
+//     session.status = "offline";
+//     await session.save();
+//     const user = await User.findById(req.user._id);
+//     user.isActive = false;
+//     await user.save();
+//     return res.json({ message: "Session ended", session });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to end session" });
+//   }
+// };
+
+// // End via beacon
+// export const endBeacon = end;
+
+// // Active sessions
+// export const active = async (req, res) => {
+//   try {
+//     const sessions = await Session.find({ status: "online" }).populate(
+//       "userId",
+//       "name employeeId"
+//     );
+//     return res.json({ sessions });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to fetch active sessions" });
+//   }
+// };
+
+// // Logs
+// export const logs = async (req, res) => {
+//   try {
+//     const logs = await Session.find({ userId: req.user._id })
+//       .sort({ createdAt: -1 })
+//       .limit(100);
+//     return res.json({ logs });
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to fetch logs" });
+//   }
+// };
+
+// // Export Logs
+// export const exportLogs = async (req, res) => {
+//   try {
+//     const logs = await Session.find({ userId: req.user._id }).sort({
+//       createdAt: -1,
+//     });
+//     let csv = "Login Time,Logout Time,Total Duration (s),Status\n";
+//     logs.forEach((s) => {
+//       csv += `${toISOStringSafe(s.loginTime)},${toISOStringSafe(
+//         s.logoutTime
+//       )},${s.totalDuration || 0},${s.status}\n`;
+//     });
+//     res.setHeader("Content-Type", "text/csv");
+//     res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+//     return res.send(csv);
+//   } catch (e) {
+//     console.error(e);
+//     return res.status(500).json({ message: "Failed to export logs" });
+//   }
+// };
+
+// // Cleanup
+// export const cleanup = async () => {
+//   try {
+//     const archiveDate = new Date(
+//       Date.now() - CONFIG.ARCHIVE_DAYS * 24 * 60 * 60 * 1000
+//     );
+//     await Session.updateMany(
+//       { createdAt: { $lt: archiveDate }, status: "offline" },
+//       { archived: true }
+//     );
+//     const deleteDate = new Date(
+//       Date.now() - CONFIG.DELETE_ARCHIVE_DAYS * 24 * 60 * 60 * 1000
+//     );
+//     await Session.deleteMany({
+//       archived: true,
+//       createdAt: { $lt: deleteDate },
+//     });
+//   } catch (e) {
+//     console.error("Cleanup failed", e);
+//   }
+// };
+
+// // -------------------- CRON JOBS --------------------
+// const idleWatcher = async () => {
+//   const cutoff = new Date(Date.now() - CONFIG.IDLE_MINUTES * 60 * 1000);
+//   await Session.updateMany(
+//     { status: "online", lastActivity: { $lt: cutoff }, isIdle: false },
+//     { isIdle: true }
+//   );
+// };
+
+// const disconnectWatcher = async () => {
+//   const cutoff = new Date(Date.now() - CONFIG.DISCONNECT_MINUTES * 60 * 1000);
+//   const sessions = await Session.find({
+//     status: "online",
+//     lastActivity: { $lt: cutoff },
+//   });
+//   for (let s of sessions) {
+//     s.status = "disconnected";
+//     await s.save();
+//     const user = await User.findById(s.userId);
+//     if (user) user.isActive = false;
+//     await user.save();
+//   }
+// };
+
+// const dailyCleanupTask = async () => {
+//   await cleanup();
+// };
+
+// if (cron) {
+//   try {
+//     cron.schedule("* * * * *", () => {
+//       idleWatcher().catch(console.error);
+//     });
+//     cron.schedule("* * * * *", () => {
+//       disconnectWatcher().catch(console.error);
+//     });
+//     const spec = `${CONFIG.DAILY_CLEAN_MINUTE} ${CONFIG.DAILY_CLEAN_HOUR} * * *`;
+//     cron.schedule(
+//       spec,
+//       () => {
+//         dailyCleanupTask().catch(console.error);
+//       },
+//       { timezone: CONFIG.TIMEZONE }
+//     );
+//     console.log("Session controller cron jobs scheduled");
+//   } catch (e) {
+//     console.warn("Failed to schedule cron jobs", e);
+//   }
+// } else {
+//   console.warn("node-cron not found - background jobs disabled");
+// }
+
+// export const runDailyCleanup = dailyCleanupTask;
+// export const runDisconnectWatcher = disconnectWatcher;
+// export const runIdleWatcher = idleWatcher;
+
+
+
+
+
+
+
+

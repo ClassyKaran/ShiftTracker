@@ -17,28 +17,48 @@ export default function TeamSection() {
 
     try {
       const resp = await teamleadApi.getAllTracked(token);
-      const lists = resp.trackedByTeamlead || [];
+      const lists = (resp.trackedByTeamlead || [])
+        .map((l) => ({
+          teamlead: l.teamlead || {},
+          tracked: (l.tracked || []).filter((u) => u && u._id),
+        }))
+        // remove entries with no teamlead id OR no teamlead name (deleted TLs or incomplete data)
+        .filter((l) => l.teamlead && l.teamlead._id && l.teamlead.name);
 
       try {
         const activeResp = await sessionApi.getActive(token);
+
         const activeMap = new Map(
-          (activeResp.users || []).map((u) => [String(u._id), u])
+          (activeResp.users || [])
+            .filter((u) => u && u._id)
+            .map((u) => [String(u._id), u])
         );
 
         const merged = lists.map((l) => ({
-          teamlead: l.teamlead,
-          tracked: (l.tracked || []).map((u) => ({
+          teamlead: l.teamlead || {},
+          tracked: l.tracked.map((u) => ({
             ...u,
             ...(activeMap.get(String(u._id)) || {}),
           })),
         }));
 
         setTeamlists(merged);
-        if (!selected && merged.length) setSelected(merged[0]);
+
+        // If current selected TL is gone, update selection
+        if (selected) {
+          const still = merged.find((m) => String(m.teamlead?._id) === String(selected.teamlead?._id));
+          if (!still) setSelected(merged.length ? merged[0] : null);
+        } else if (!selected && merged.length) setSelected(merged[0]);
       } catch (err) {
-        console.warn("session active merge failed", err);
-        setTeamlists(lists);
-        if (!selected && lists.length) setSelected(lists[0]);
+        console.warn("active merge failed", err);
+        // filter out entries with no teamlead id
+        const filteredLists = (lists || []).filter((l) => l.teamlead && l.teamlead._id && l.teamlead.name);
+        setTeamlists(filteredLists);
+
+        if (selected) {
+          const still = filteredLists.find((m) => String(m.teamlead?._id) === String(selected.teamlead?._id));
+          if (!still) setSelected(filteredLists.length ? filteredLists[0] : null);
+        } else if (!selected && filteredLists.length) setSelected(filteredLists[0]);
       }
     } catch (err) {
       console.error("Failed to load team lists", err);
@@ -64,12 +84,10 @@ export default function TeamSection() {
     return (
       <div>
         <div className="mb-3 fw-semibold">
-          Viewing <strong>{selected.teamlead.name}</strong> (
-         {selected.teamlead.employeeId}) —{" "}
-          <span className="text-primary fw-bold">
-            {selected.tracked.length}
-          </span>{" "}
-          tracked 
+          Viewing <strong>{selected.teamlead?.name || "Unknown"}</strong> (
+          {selected.teamlead?.employeeId || "-"}) —{" "}
+          <span className="text-primary fw-bold">{selected.tracked.length}</span>{" "}
+          tracked
         </div>
 
         <div className="table-responsive">
@@ -94,36 +112,36 @@ export default function TeamSection() {
             </thead>
 
             <tbody>
-              {selected.tracked.map((u) => (
-                <tr key={u._id}>
+              {selected.tracked.map((u, index) => (
+                <tr key={u?._id || index}>
                   <td>
-                    <div className="fw-bold">{u.name || "-"}</div>
-                    <div className="small text-muted">{u.employeeId || ""}</div>
+                    <div className="fw-bold">{u?.name || "-"}</div>
+                    <div className="small text-muted">{u?.employeeId || ""}</div>
                   </td>
 
-                  <td>{u.device || u.ip || "-"}</td>
-                  <td className="text-capitalize">{u.role || "employee"}</td>
-                  <td>{u.locationName || u.location || "-"}</td>
+                  <td>{u?.device || u?.ip || "-"}</td>
+                  <td className="text-capitalize">{u?.role || "employee"}</td>
+                  <td>{u?.locationName || u?.location || "-"}</td>
 
                   <td>
-                    {u.loginTime
+                    {u?.loginTime
                       ? new Date(u.loginTime).toLocaleString()
                       : "-"}
                   </td>
 
                   <td>
-                    {u.logoutTime
+                    {u?.logoutTime
                       ? new Date(u.logoutTime).toLocaleString()
                       : "-"}
                   </td>
 
                   <td>
-                    {typeof u.totalDuration !== "undefined" &&
-                    u.totalDuration !== null ? (
+                    {typeof u?.totalDuration !== "undefined" &&
+                    u?.totalDuration !== null ? (
                       `${Math.floor(u.totalDuration / 3600)}h ${Math.floor(
                         (u.totalDuration % 3600) / 60
                       )}m ${u.totalDuration % 60}s`
-                    ) : u.loginTime ? (
+                    ) : u?.loginTime ? (
                       <span className="text-primary fw-semibold">
                         {Math.floor(
                           (Date.now() - new Date(u.loginTime)) / 1000 / 60
@@ -138,14 +156,14 @@ export default function TeamSection() {
                   <td>
                     <span
                       className={`badge px-3 py-2 rounded-pill ${
-                        u.status === "online"
+                        u?.status === "online"
                           ? "bg-success"
-                          : u.status === "disconnected"
+                          : u?.status === "disconnected"
                           ? "bg-warning text-dark"
                           : "bg-danger"
                       }`}
                     >
-                      {u.status || "offline"}
+                      {u?.status || "offline"}
                     </span>
                   </td>
                 </tr>
@@ -167,20 +185,15 @@ export default function TeamSection() {
 
   return (
     <div className="container py-3">
-
-      <h2 className="mb-4 fw-bold text-dark" >
-      
-        Live Teamlead Tracking
-      </h2>
+      <h2 className="mb-4 fw-bold text-dark">Live Teamlead Tracking</h2>
 
       <div className="row">
-
-        {/* LEFT SIDEBAR */}
+        {/* LEFT SIDE */}
         <div className="col-md-3">
           <div
             className="card shadow-sm border-0 mb-3"
             style={{
-              background: "linear-gradient(135deg, #c0f1f5ff, #bfd2f7ff)"
+              background: "linear-gradient(135deg, #c0f1f5ff, #bfd2f7ff)",
             }}
           >
             <div className="card-body">
@@ -192,14 +205,17 @@ export default function TeamSection() {
                 <div className="text-muted">No team leads found</div>
               )}
 
-              {teamlists.map((l) => {
+              {teamlists.map((l, index) => {
+                const TL = l.teamlead || {};
+
                 const isActive =
                   selected &&
-                  String(selected.teamlead._id) === String(l.teamlead._id);
+                  selected.teamlead &&
+                  String(selected.teamlead?._id) === String(TL?._id);
 
                 return (
                   <div
-                    key={l.teamlead._id}
+                    key={TL?._id || index}
                     className={`p-3 rounded mb-2 shadow-sm teamlead-card ${
                       isActive ? "active" : ""
                     }`}
@@ -210,10 +226,12 @@ export default function TeamSection() {
                         ? "linear-gradient(135deg, #d7e8ff, #ecebff)"
                         : "linear-gradient(135deg, #f7faff, #eef4ff)",
                     }}
-                    onClick={() => setSelected(l)}
+                    onClick={() => TL?._id && setSelected(l)}
                   >
                     <div className="d-flex justify-content-between align-items-center">
-                      <div className="fw-semibold">{l.teamlead.name}</div>
+                      <div className="fw-semibold">
+                        {TL?.name || "Unknown TL"}
+                      </div>
 
                       <div
                         className={`badge rounded-pill ${
@@ -230,18 +248,17 @@ export default function TeamSection() {
           </div>
         </div>
 
-        {/* RIGHT SECTION */}
+        {/* RIGHT SIDE */}
         <div className="col-md-9">
           <div
             className="card shadow-sm border-0 mb-3"
             style={{
-              background: "linear-gradient(135deg, #ffffff, #f4f7ff)"
+              background: "linear-gradient(135deg, #ffffff, #f4f7ff)",
             }}
           >
             <div className="card-body">{renderRight()}</div>
           </div>
         </div>
-
       </div>
     </div>
   );

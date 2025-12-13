@@ -1,7 +1,16 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 
 export default function AdminLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      setSidebarOpen(window.innerWidth >= 768);
+    } catch (e) {
+      void e;
+    }
+  }, []);
   return (
     <div
   className="d-flex"
@@ -15,7 +24,7 @@ export default function AdminLayout() {
       {/* style={{ height: "87vh", overflow: "hidden" }} */}
       {/* Sidebar */}
       <aside
-        className=" p-3"
+        className={`p-3 ${sidebarOpen ? 'd-block' : 'd-none'} d-md-block`}
         style={{
           width: "240px",
           overflow: "hidden",
@@ -75,6 +84,16 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
+      <div className="d-md-none mb-2">
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => setSidebarOpen((s) => !s)}
+          aria-label="Toggle sidebar"
+        >
+          <i className="bi bi-list"></i>
+        </button>
+      </div>
       <main
         className="flex-grow-1 p-3"
         style={{
