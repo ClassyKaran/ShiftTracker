@@ -99,7 +99,7 @@ export default function TrackTeam() {
           });
           setTrackedDocs((prev) =>
             prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u } : p
+              String(p._id) === String(u._id) ? { ...p, ...u, status: "online" } : p
             )
           );
         });
@@ -113,7 +113,7 @@ export default function TrackTeam() {
           });
           setTrackedDocs((prev) =>
             prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u } : p
+              String(p._id) === String(u._id) ? { ...p, ...u, status: "offline" } : p
             )
           );
         });
@@ -127,7 +127,7 @@ export default function TrackTeam() {
           });
           setTrackedDocs((prev) =>
             prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u } : p
+              String(p._id) === String(u._id) ? { ...p, ...u, status: "disconnected" } : p
             )
           );
         });
@@ -154,8 +154,7 @@ export default function TrackTeam() {
 
     if (type === "all") {
       trackedDocs.forEach((u) => {
-        const t =
-          u.status === "offline" ? u.logoutTime : u.loginTime || u.lastActivity;
+        const t = u.status === "offline" ? u.logoutTime : u.loginTime || u.lastActivity;
         pushUser(u, t);
       });
       setPopupTitle("All tracked users");
