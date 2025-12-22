@@ -25,7 +25,10 @@ export default function TrackTeam() {
     if (!token) return;
     try {
       const resp = await teamleadApi.getTracked(token);
-      setTrackedDocs(resp.tracked || []);
+      const tracked = resp.tracked || [];
+      // merge active session info so initial render has up-to-date statuses
+      const merged = await mergeActiveInfo(tracked);
+      setTrackedDocs(merged);
     } catch (e) {
       console.error("Failed to fetch tracked", e);
     }
@@ -70,18 +73,54 @@ export default function TrackTeam() {
         const socket = connectSocket(token);
         socketRef.current = socket;
         socket.on("users_list_update", async (data) => {
-          // if any tracked users in the update, refresh tracked view
-          const ids = new Set((data.users || []).map((u) => String(u._id)));
-          const trackedIds = new Set(
-            (await teamleadApi.getTracked(token)).tracked.map((t) =>
-              String(t._id || t.id)
-            )
-          );
-          const intersect = Array.from(trackedIds).some((id) => ids.has(id));
-          if (intersect) {
-            const tracked = (await teamleadApi.getTracked(token)).tracked || [];
-            const merged = await mergeActiveInfo(tracked);
-            setTrackedDocs(merged);
+          try {
+            const users = data?.users || [];
+            const userMap = new Map((users || []).map((u) => [String(u._id), u]));
+            // also map by 'id' if present (some tracked entries use 'id' key)
+            users.forEach(u => { if (u.id) userMap.set(String(u.id), u); });
+
+            // If we have an existing trackedDocs list in state, update it in-place for immediate UX
+            setTrackedDocs((prevTracked) => {
+              if (!prevTracked || prevTracked.length === 0) {
+                // no prior data - fetch tracked list from server and apply payload
+                (async () => {
+                  try {
+                    const trackedResp = await teamleadApi.getTracked(token).catch(() => ({ tracked: [] }));
+                    const tracked = trackedResp.tracked || [];
+                    const merged = tracked.map((p) => {
+                      const key = String(p._id || p.id || "");
+                      const upd = userMap.get(key);
+                      if (upd) return { ...p, ...upd };
+                      return { ...p, status: p.status || "offline", lastActivity: p.lastActivity || null, isIdle: !!p.isIdle };
+                    });
+                    setTrackedDocs(merged);
+                    try { console.info('users_list_update: fetched+merged tracked', merged.length, 'from payload users', users.length); } catch(e){ void e; }
+                  } catch (e) {
+                    console.error('users_list_update fetch merge failed', e);
+                  }
+                })();
+                return prevTracked;
+              }
+
+              // update existing tracked entries using server payload where available
+              const updated = prevTracked.map((p) => {
+                const key = String(p._id || p.id || "");
+                const upd = userMap.get(key);
+                if (upd) return { ...p, ...upd };
+                // if server payload doesn't include this user, and previously it was online/disconnected,
+                // mark as offline to ensure counts reflect latest state after refresh
+                if (p.status === 'online' || p.status === 'disconnected') {
+                  return { ...p, status: 'offline', lastActivity: p.lastActivity || null };
+                }
+                return p;
+              });
+
+              try { console.info('users_list_update: updated tracked in-place', updated.length, 'with payload users', users.length); } catch(e){ void e; }
+              return updated;
+            });
+
+          } catch (err) {
+            console.error('users_list_update handler failed', err);
           }
         });
 
@@ -89,46 +128,74 @@ export default function TrackTeam() {
           set_Recent((prev) => [r, ...prev].slice(0, 50));
         };
 
+        const matches = (p, u) => {
+          const pid = String(p._id || p.id || "");
+          const uid = String(u._id || u.id || "");
+          return pid && uid && pid === uid;
+        };
+
+        // debug connection state (helps understand deployed vs local differences)
+        try {
+          socket.on('connect', async () => {
+            console.info('TrackTeam socket connected', socket.id, 'connected=', socket.connected);
+            try {
+              // fetch latest active sessions and merge so initial UI immediately shows correct status
+              const active = await sessionApi.getActive(token).catch(() => null);
+              const users = active?.users || [];
+              const userMap = new Map((users || []).map((u) => [String(u._id), u]));
+              users.forEach(u => { if (u.id) userMap.set(String(u.id), u); });
+              setTrackedDocs((prev) => {
+                if (!prev || prev.length === 0) return prev;
+                return prev.map((p) => {
+                  const key = String(p._id || p.id || "");
+                  const upd = userMap.get(key);
+                  if (upd) return { ...p, ...upd };
+                  if (p.status === 'online' || p.status === 'disconnected') return { ...p, status: 'offline' };
+                  return p;
+                });
+              });
+            } catch (e) {
+              console.warn('TrackTeam: failed to merge active sessions on connect', e && e.message);
+            }
+          });
+          socket.on('connect_error', (err) => console.warn('TrackTeam socket connect_error', err && err.message));
+          socket.on('reconnect_attempt', (n) => console.info('TrackTeam socket reconnect_attempt', n));
+        } catch(e){ void e; }
+
         socket.on("user_online", (u) => {
           pushRecent({
-            sessionId: u._id + "-on",
+            sessionId: (u._id || u.id) + "-on",
             user: u,
             status: "online",
             createdAt: new Date().toISOString(),
             device: u.device,
           });
           setTrackedDocs((prev) =>
-            prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u, status: "online" } : p
-            )
+            prev.map((p) => (matches(p, u) ? { ...p, ...u, status: "online" } : p))
           );
         });
         socket.on("user_offline", (u) => {
           pushRecent({
-            sessionId: u._id + "-off",
+            sessionId: (u._id || u.id) + "-off",
             user: u,
             status: "offline",
             createdAt: new Date().toISOString(),
             device: u.device,
           });
           setTrackedDocs((prev) =>
-            prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u, status: "offline" } : p
-            )
+            prev.map((p) => (matches(p, u) ? { ...p, ...u, status: "offline" } : p))
           );
         });
         socket.on("user_disconnected", (u) => {
           pushRecent({
-            sessionId: u._id + "-disc",
+            sessionId: (u._id || u.id) + "-disc",
             user: u,
             status: "disconnected",
             createdAt: new Date().toISOString(),
             device: u.device,
           });
           setTrackedDocs((prev) =>
-            prev.map((p) =>
-              String(p._id) === String(u._id) ? { ...p, ...u, status: "disconnected" } : p
-            )
+            prev.map((p) => (matches(p, u) ? { ...p, ...u, status: "disconnected" } : p))
           );
         });
       } catch (e) {

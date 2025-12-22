@@ -516,6 +516,15 @@ export const end = async (req, res) => {
     user.isActive = false;
     await user.save();
 
+    // trigger immediate users_list_update broadcast (best-effort)
+    try {
+      if (global._io && typeof global._io._broadcastLatestNow === 'function') {
+        await global._io._broadcastLatestNow();
+      }
+    } catch (e) {
+      console.warn('broadcast trigger failed on end', e && e.message);
+    }
+
     return res.json({ session });
   } catch (e) {
     console.error(e);
@@ -562,6 +571,15 @@ export const endBeacon = async (req, res) => {
     // record disconnectedAt for reporting
     session.disconnectedAt = now;
     await session.save();
+
+    // best-effort: trigger broadcast so dashboards and teamlead views update immediately
+    try {
+      if (global._io && typeof global._io._broadcastLatestNow === 'function') {
+        await global._io._broadcastLatestNow();
+      }
+    } catch (e) {
+      console.warn('broadcast trigger failed on endBeacon', e && e.message);
+    }
 
     // keep user.isActive true until explicit end or disconnect watcher marks offline
     return res.json({ session });

@@ -30,6 +30,8 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: process.env.CLIENT_URL || '*' } });
 
 socketHandler(io);
+// expose io globally so controllers can trigger broadcasts when needed
+try { global._io = io; } catch (e) { /* ignore */ }
 
 try {
   await connectDB();

@@ -77,7 +77,10 @@ export default (io) => {
       }
     };
 
+    // expose this fn so other parts of the app can trigger an immediate broadcast
     io._shiftBroadcastInterval = setInterval(broadcastLatest, 15000); // every 15s
+    // attach a named helper to io so controllers can trigger immediate broadcasts
+    io._broadcastLatestNow = broadcastLatest;
   }
 
   io.on('connection', async (socket) => {
