@@ -466,9 +466,9 @@ export default function TrackTeam() {
                   <th>Device</th>
                   <th>Role</th>
                   <th>Location</th>
-                  <th>Login Time</th>
-                  <th>Logout Time</th>
-                  <th>Active Time</th>
+                  <th>Login</th>
+                  <th>Logout</th>
+                  <th>Active</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -483,7 +483,7 @@ export default function TrackTeam() {
                       </div>
                     </td>
                     <td>{u.device || u.ip || "-"}</td>
-                    <td>{u.role || "employee"}</td>
+                    <td className="text-capitalize">{u.role || "employee"}</td>
                     <td>{u.locationName || u.location || "-"}</td>
                     <td>
                       {u.loginTime
