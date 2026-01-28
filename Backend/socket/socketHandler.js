@@ -85,12 +85,20 @@ export default (io) => {
 
   io.on('connection', async (socket) => {
     try {
+      console.log('[Socket] New connection attempt, socket ID:', socket.id);
       const token = socket.handshake.auth && socket.handshake.auth.token;
-      if (!token) return socket.disconnect(true);
+      if (!token) {
+        console.warn('[Socket] No token provided, disconnecting');
+        return socket.disconnect(true);
+      }
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
       const user = await User.findById(decoded.id);
-      if (!user) return socket.disconnect(true);
+      if (!user) {
+        console.warn('[Socket] User not found for token');
+        return socket.disconnect(true);
+      }
 
+      console.log('[Socket] User authenticated:', user.name, '(' + user._id + ')');
       onlineMap.set(String(user._id), socket.id);
       user.isActive = true;
       await user.save();
@@ -228,6 +236,70 @@ export default (io) => {
           }
         } catch (e) {
           console.error('heartbeat handler error', e);
+        }
+      });
+
+      // ====== SCREEN SHARING FUNCTIONALITY ======
+      // Employee emits screen frame - broadcast to ALL admins/viewers
+      socket.on('employee-screen-frame', (frameData) => {
+        try {
+          if (!frameData) {
+            console.warn('[Socket] Empty frame data from', user.name);
+            return;
+          }
+
+          console.log('[Socket] Broadcasting frame from', user.name, '(' + user._id + ')', 'size:', frameData.length, 'bytes');
+          
+          // Broadcast to ALL connected clients with employeeId so admins know who it's from
+          io.emit('admin-receive-frame', {
+            frame: frameData,
+            employeeId: String(user._id),
+            employeeName: user.name
+          });
+        } catch (e) {
+          console.error('[Socket] Frame error:', e.message);
+        }
+      });
+
+      // Handle screen sharing permission request (optional - for future enhancement)
+      socket.on('request-screen-permission', (payload) => {
+        try {
+          const targetUserId = payload?.targetUserId;
+          const adminId = user._id;
+          
+          // Find the target employee's socket to send notification
+          const targetSocket = Array.from(io.sockets.sockets.values()).find(s => {
+            const decodedToken = jwt.verify(s.handshake.auth?.token, process.env.JWT_SECRET || 'secret');
+            return String(decodedToken.id) === String(targetUserId);
+          });
+          
+          if (targetSocket) {
+            targetSocket.emit('admin-screen-request', {
+              adminId,
+              adminName: user.name,
+              message: `Admin ${user.name} is requesting to view your screen`,
+            });
+          }
+        } catch (e) {
+          console.error('request-screen-permission error', e);
+        }
+      });
+
+      // Employee approves/denies screen share
+      socket.on('screen-permission-response', (payload) => {
+        try {
+          const adminId = payload?.adminId;
+          const approved = payload?.approved;
+          
+          // Notify the admin about the response
+          io.emit('screen-permission-response', {
+            adminId,
+            employeeId: user._id,
+            employeeName: user.name,
+            approved,
+          });
+        } catch (e) {
+          console.error('screen-permission-response error', e);
         }
       });
 

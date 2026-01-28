@@ -3,7 +3,15 @@ import Timer from "./Timer";
 import { updateUser, deleteUser } from "../api/authApi";
 import { useQueryClient } from "@tanstack/react-query";
 
-export default function UserCard({ user, onUpdated, onDeleted, canEdit = true }) {
+
+
+export default function UserCard({
+  user,
+  onUpdated,
+  onDeleted,
+  onScreenShare = null,
+  canEdit = true,
+}) {
   const qc = useQueryClient();
   const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
   const [editing, setEditing] = useState(false);
@@ -14,16 +22,23 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
   });
 
   // derive initials and color for avatar
-  const initials = (user.name || '')
-    .split(' ')
-    .map(s => s[0] || '')
-    .slice(0,2)
-    .join('')
-    .toUpperCase() || '?';
+  const initials =
+    (user.name || "")
+      .split(" ")
+      .map((s) => s[0] || "")
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
 
-  const hash = String(user._id || user.employeeId || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const hash = String(user._id || user.employeeId || "")
+    .split("")
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const hue = hash % 360;
-  const avatarStyle = { width: '32px', height: '32px', backgroundColor: `hsl(${hue} 65% 50%)` };
+  const avatarStyle = {
+    width: "32px",
+    height: "32px",
+    backgroundColor: `hsl(${hue} 65% 50%)`,
+  };
 
   const save = async () => {
     try {
@@ -72,7 +87,9 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
               <input
                 className="form-control"
                 value={form.employeeId}
-                onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, employeeId: e.target.value })
+                }
               />
             ) : (
               <div className="text-muted">{user.employeeId}</div>
@@ -81,16 +98,26 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
         </div>
       </td>
 
-      <td>{typeof user.device !== 'undefined' && user.device !== null && user.device !== '' ? user.device : '-'}</td>
+      <td>
+        {typeof user.device !== "undefined" &&
+        user.device !== null &&
+        user.device !== ""
+          ? user.device
+          : "-"}
+      </td>
       {/* <td>{user.role}</td> */}
       <td>
-  {(user.role || "")
-    .charAt(0)
-    .toUpperCase() + (user.role || "").slice(1)}
-</td>
+        {(user.role || "").charAt(0).toUpperCase() + (user.role || "").slice(1)}
+      </td>
 
       {/* <td>{user.role.charAt(0).toUpperCase() + user.role.slice(1) || "-"}</td> */}
-      <td>{typeof user.location !== 'undefined' && user.location !== null && user.location !== '' ? user.location : '-'}</td>
+      <td>
+        {typeof user.location !== "undefined" &&
+        user.location !== null &&
+        user.location !== ""
+          ? user.location
+          : "-"}
+      </td>
       <td>
         {user.loginTime ? new Date(user.loginTime).toLocaleString() : "-"}
       </td>
@@ -100,7 +127,7 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
       <td>
         {typeof user.totalDuration !== "undefined" ? (
           `${Math.floor(user.totalDuration / 3600)}h ${Math.floor(
-            (user.totalDuration % 3600) / 60
+            (user.totalDuration % 3600) / 60,
           )}m ${user.totalDuration % 60}s`
         ) : (
           <Timer start={user.loginTime} />
@@ -112,8 +139,8 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
             user.status === "online"
               ? "bg-success"
               : user.status === "disconnected"
-              ? "bg-warning"
-              : "bg-danger"
+                ? "bg-warning"
+                : "bg-danger"
           }`}
         >
           {user.status}
@@ -124,7 +151,7 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
           editing ? (
             <>
               <button className="btn btn-sm btn-success me-1" onClick={save}>
-                <i className="bi bi-check-circle"/>
+                <i className="bi bi-check-circle" />
               </button>
               <button
                 className="btn btn-sm btn-secondary"
@@ -137,20 +164,33 @@ export default function UserCard({ user, onUpdated, onDeleted, canEdit = true })
                   });
                 }}
               >
-                <i className="bi bi-x-circle"/>
+                <i className="bi bi-x-circle" />
               </button>
             </>
           ) : (
             <div className="d-flex">
               <button
                 className="btn btn-sm btn-outline-primary me-1"
+                onClick={() => onScreenShare && onScreenShare(user._id, user.name)}
+                title="Watch employee screen"
+              >
+                <i className="bi bi-display" />
+              </button>
+              <button
+                className="btn btn-sm btn-outline-primary me-1"
                 onClick={() => setEditing(true)}
               >
-                <i className="bi bi-pencil-square"/>
+                <i className="bi bi-pencil-square" />
               </button>
-              <button className="btn btn-sm btn-outline-danger" onClick={remove}>
-                <i className="bi bi-trash"/>
+
+              <button
+                className="btn btn-sm btn-outline-danger"
+                onClick={remove}
+              >
+                <i className="bi bi-trash" />
               </button>
+
+             
             </div>
           )
         ) : null}

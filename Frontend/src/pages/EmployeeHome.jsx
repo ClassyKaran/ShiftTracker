@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
-import { connectSocket, disconnectSocket } from "../context/socket";
+import { connectSocket, disconnectSocket, getSocket } from "../context/socket";
 import useSession from "../hooks/useSession";
 import Timer from "../components/Timer";
 import Idle from "idle-js";
@@ -13,7 +13,7 @@ import { formatTime, durationSeconds } from "../utils/time";
 export default function EmployeeHome() {
   const qc = useQueryClient();
   const token = qc.getQueryData(["token"]) || localStorage.getItem("token");
- const { logout } = useAuth();
+  const { logout } = useAuth();
   const { start, end } = useSession();
   const [session, setSession] = useState(null);
   const [deviceType, setDeviceType] = useState("Unknown");
@@ -52,6 +52,74 @@ export default function EmployeeHome() {
     return "Desktop";
   };
 
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const screenIntervalRef = useRef(null);
+
+  const startSharing = async () => {
+    try {
+      console.log("[Screen] Starting screen capture...");
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: "always",
+          displaySurface: "monitor",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+
+      const context = canvasRef.current.getContext("2d");
+      console.log("[Screen] Display media started, beginning frame capture");
+
+      const intervalId = setInterval(() => {
+        if (videoRef.current && videoRef.current.readyState === 4) {
+          try {
+            const currentSocket = getSocket(); // Get fresh socket reference each time
+            if (!currentSocket || !currentSocket.connected) {
+              console.warn('[Screen] Socket not connected, skipping frame');
+              return;
+            }
+            
+            canvasRef.current.width = videoRef.current.videoWidth;
+            canvasRef.current.height = videoRef.current.videoHeight;
+            context.drawImage(
+              videoRef.current,
+              0,
+              0,
+              canvasRef.current.width,
+              canvasRef.current.height,
+            );
+
+            const base64Image = canvasRef.current.toDataURL("image/jpeg", 0.9);
+            currentSocket.emit("employee-screen-frame", base64Image);
+            // console.log("[Screen] Frame emitted -", base64Image.length, "bytes");
+          } catch (err) {
+            console.error("[Screen] Error capturing frame:", err);
+          }
+        }
+      }, 400);
+
+      screenIntervalRef.current = intervalId;
+
+      stream.getVideoTracks()[0].onended = () => {
+        clearInterval(intervalId);
+        screenIntervalRef.current = null;
+        console.log("[Screen] Screen sharing stopped by user");
+      };
+
+      console.log("[Screen] Screen sharing active");
+    } catch (err) {
+      console.error("[Screen] Error accessing screen:", err);
+      toast.error("Could not access screen: " + err.message);
+    }
+  };
+
   const handleStartShift = async () => {
     setLoading(true);
     try {
@@ -59,11 +127,23 @@ export default function EmployeeHome() {
       setDeviceType(detected);
       const res = await start(token, { device: detected });
       setSession(res.session);
+      console.log("[Shift] Session started, socket connecting");
 
       try {
         const socket = connectSocket(token);
         socketRef.current = socket;
-        const sid = res.session ? res.session._id : null;
+        console.log("[Shift] Socket connected status:", socket.connected);
+        
+        // Wait for socket to actually connect before starting screen share
+        if (socket.connected) {
+          console.log("[Shift] Starting screen share immediately");
+          setTimeout(() => startSharing(), 100);
+        } else {
+          socket.once('connect', () => {
+            console.log("[Shift] Socket connected, starting screen share");
+            startSharing();
+          });
+        }
         const idle = new Idle({
           idle: 5 * 60 * 1000,
           onIdle: () => {
@@ -75,7 +155,10 @@ export default function EmployeeHome() {
               setSession((prev) => (prev ? { ...prev, isIdle: true } : prev));
               try {
                 if (socketRef.current && socketRef.current.emit) {
-                  socketRef.current.emit('heartbeat', { isIdle: true, ts: Date.now() });
+                  socketRef.current.emit("heartbeat", {
+                    isIdle: true,
+                    ts: Date.now(),
+                  });
                 }
               } catch (e) {
                 void e;
@@ -89,23 +172,42 @@ export default function EmployeeHome() {
               if (!sid) return;
               // Prefer socket heartbeat for instant server updates; fall back to HTTP activity
               try {
-                if (socketRef.current && socketRef.current.connected && socketRef.current.emit) {
-                  socketRef.current.emit('heartbeat', { isIdle: false, ts: Date.now() });
+                if (
+                  socketRef.current &&
+                  socketRef.current.connected &&
+                  socketRef.current.emit
+                ) {
+                  socketRef.current.emit("heartbeat", {
+                    isIdle: false,
+                    ts: Date.now(),
+                  });
                 } else {
                   await activity(token, { sessionId: sid });
                 }
-              } catch (e) {
-                // fallback http
+              } catch {
                 await activity(token, { sessionId: sid });
               }
               setSession((prev) =>
-                prev ? { ...prev, isIdle: false, lastActivity: new Date().toISOString() } : prev
+                prev
+                  ? {
+                      ...prev,
+                      isIdle: false,
+                      lastActivity: new Date().toISOString(),
+                    }
+                  : prev,
               );
               if (!heartbeatRef.current) {
                 heartbeatRef.current = setInterval(() => {
                   try {
-                    if (socketRef.current && socketRef.current.connected && socketRef.current.emit) {
-                      socketRef.current.emit('heartbeat', { isIdle: false, ts: Date.now() });
+                    if (
+                      socketRef.current &&
+                      socketRef.current.connected &&
+                      socketRef.current.emit
+                    ) {
+                      socketRef.current.emit("heartbeat", {
+                        isIdle: false,
+                        ts: Date.now(),
+                      });
                     } else {
                       activity(token, { sessionId: sid });
                     }
@@ -148,6 +250,13 @@ export default function EmployeeHome() {
   const handleEndShift = async () => {
     setLoading(true);
     try {
+      // Stop screen sharing first
+      if (screenIntervalRef.current) {
+        clearInterval(screenIntervalRef.current);
+        screenIntervalRef.current = null;
+        console.log("[Shift] Screen sharing stopped");
+      }
+
       const data = await end(token, session?._id);
 
       setEndedSession(data && data.session ? data.session : null);
@@ -164,7 +273,7 @@ export default function EmployeeHome() {
           clearInterval(heartbeatRef.current);
           heartbeatRef.current = null;
         }
-      } catch{
+      } catch {
         void 0;
       }
 
@@ -231,25 +340,29 @@ export default function EmployeeHome() {
     return (
       <div className="shift-summary-wrapper">
         <div className="summary-card container">
-
           <h2 className="fw-bold mb-0">Shift Summary</h2>
           <p className="text-muted">{userDisplay}</p>
 
           <div className="row mt-4">
-
             <div className="col-lg-4">
               <div className="summary-box sb-blue">
                 <div className="s-label">Login Time</div>
-                <div className="s-value">{formatTime(endedSession.loginTime)}</div>
+                <div className="s-value">
+                  {formatTime(endedSession.loginTime)}
+                </div>
               </div>
 
               <div className="summary-box sb-pink">
                 <div className="s-label">Logout Time</div>
-                <div className="s-value">{formatTime(endedSession.logoutTime)}</div>
+                <div className="s-value">
+                  {formatTime(endedSession.logoutTime)}
+                </div>
               </div>
 
               <div className="summary-box sb-green">
-                <div className="s-label"><i className="bi bi-clock"></i> Total Duration</div>
+                <div className="s-label">
+                  <i className="bi bi-clock"></i> Total Duration
+                </div>
                 <div className="s-value">
                   {new Date(endedSession.totalDuration * 1000)
                     .toISOString()
@@ -274,7 +387,7 @@ export default function EmployeeHome() {
                     <div className="fw-semibold">{userDisplay}</div>
                   </div>
 
-                   <div className="mt-3">
+                  <div className="mt-3">
                     <small className="text-muted">Position</small>
                     <div className="fw-semibold">{deviceType}</div>
                   </div>
@@ -292,7 +405,6 @@ export default function EmployeeHome() {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -334,12 +446,13 @@ export default function EmployeeHome() {
 
             <div className="eh-metric">
               <div className="label">Location</div>
-              <div className="value" style={{height:'40px',overflowY:'scroll'}}>
+              <div
+                className="value"
+                style={{ height: "40px", overflowY: "scroll" }}
+              >
                 {session?.locationName || session?.location || "-"}
               </div>
             </div>
-
-           
           </div>
 
           {/* CENTER CIRCLE TIMER */}
@@ -363,6 +476,8 @@ export default function EmployeeHome() {
               >
                 {session ? "End Shift" : "Start Shift"}
               </button>
+              <video ref={videoRef} style={{ display: "none" }} />
+              <canvas ref={canvasRef} style={{ display: "none" }} />
             </div>
           </div>
 
@@ -374,8 +489,8 @@ export default function EmployeeHome() {
                 {session?.loginTime
                   ? formatTime(session.loginTime)
                   : endedSession?.loginTime
-                  ? formatTime(endedSession.loginTime)
-                  : "--"}
+                    ? formatTime(endedSession.loginTime)
+                    : "--"}
               </div>
             </div>
             {/* <div className="eh-metric">
@@ -393,8 +508,7 @@ export default function EmployeeHome() {
               <div className="value">06:30 PM</div>
             </div>
 
-
- <div className="eh-metric">
+            <div className="eh-metric">
               <div className="label">Idle Time</div>
               <div className="value">
                 {session?.lastActivity
@@ -402,22 +516,21 @@ export default function EmployeeHome() {
                     ? new Date(idleSeconds * 1000).toISOString().substr(11, 8)
                     : "--"
                   : endedSession?.lastActivity && endedSession?.logoutTime
-                  ? new Date(
-                      Math.max(
-                        0,
-                        Math.floor(
-                          (new Date(endedSession.logoutTime) -
-                            new Date(endedSession.lastActivity)) /
-                            1000
-                        )
-                      ) * 1000
-                    )
-                      .toISOString()
-                      .substr(11, 8)
-                  : "--"}
+                    ? new Date(
+                        Math.max(
+                          0,
+                          Math.floor(
+                            (new Date(endedSession.logoutTime) -
+                              new Date(endedSession.lastActivity)) /
+                              1000,
+                          ),
+                        ) * 1000,
+                      )
+                        .toISOString()
+                        .substr(11, 8)
+                    : "--"}
               </div>
             </div>
-
 
             {/* <div className="eh-metric">
               <div className="label">Total Duration</div>

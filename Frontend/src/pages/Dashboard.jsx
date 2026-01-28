@@ -3,9 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { connectSocket, disconnectSocket } from "../context/socket";
 import UserCard from "../components/UserCard";
 import AddUserForm from "../components/AddUserForm";
+import ScreenShareModal from "../components/ScreenShareModal";
 import * as sessionApi from "../api/sessionApi";
 import * as authApi from "../api/authApi";
 import { reverseGeocodeIfCoords } from "../utils/geo";
+
 
 export default function Dashboard() {
   const qc = useQueryClient();
@@ -19,6 +21,8 @@ export default function Dashboard() {
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupTitle, setPopupTitle] = useState("");
   const [popupRows, setPopupRows] = useState([]);
+  const [screenShareOpen, setScreenShareOpen] = useState(false);
+  const [selectedScreenEmployee, setSelectedScreenEmployee] = useState(null);
 
   const handleOpenPopup = (type) => {
     const rows = [];
@@ -61,6 +65,12 @@ export default function Dashboard() {
 
     setPopupRows(rows);
     setPopupOpen(true);
+  };
+
+  const handleScreenShare = (userId, userName) => {
+    console.log('[Dashboard] Opening screen share for:', userId, userName);
+    setSelectedScreenEmployee({ _id: userId, name: userName });
+    setScreenShareOpen(true);
   };
 
 // console.log(recent);
@@ -597,6 +607,7 @@ export default function Dashboard() {
                   key={u._id}
                   user={u}
                   canEdit={(qc.getQueryData(["user"]) || {}).role === "admin"}
+                  onScreenShare={handleScreenShare}
                   onUpdated={(updated) =>
                     setUsers((prev) =>
                       prev.map((p) =>
@@ -616,6 +627,17 @@ export default function Dashboard() {
             </tbody>
           </table>
       </div>
+
+      {/* Screen Share Modal */}
+      <ScreenShareModal
+        isOpen={screenShareOpen}
+        employeeId={selectedScreenEmployee?._id}
+        employeeName={selectedScreenEmployee?.name}
+        onClose={() => {
+          setScreenShareOpen(false);
+          setSelectedScreenEmployee(null);
+        }}
+      />
     </div>
   );
 }

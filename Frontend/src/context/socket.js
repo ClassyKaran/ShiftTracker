@@ -4,13 +4,9 @@ let socket = null;
 let _lastToken = null;
 
 export const connectSocket = (token) => {
-  // Prefer configured socket URL, otherwise connect to same origin where the app is served
-  const BASE =
-    (typeof window !== "undefined" &&
-      (window.__REACT_APP_SOCKET_URL__ ||
-        window.__VITE_SOCKET_URL__ ||
-        window.location.origin)) ||
-    "";
+  // Connect to backend server explicitly
+  const BASE = "http://localhost:5000";
+  
   // if we already have a socket but token changed, recreate connection
   if (socket && _lastToken && token && String(_lastToken) !== String(token)) {
     try {
@@ -40,13 +36,16 @@ export const connectSocket = (token) => {
 
   // defensive listeners for debugging
   socket.on("connect", () =>
-    console.info("socket connected", socket.id, "->", BASE)
+    console.info("[Socket] Connected", socket.id, "to", BASE)
   );
   socket.on("connect_error", (err) =>
-    console.warn("socket connect_error", err && err.message)
+    console.warn("[Socket] connect_error", err && err.message)
   );
   socket.on("reconnect_error", (err) =>
-    console.warn("socket reconnect_error", err && err.message)
+    console.warn("[Socket] reconnect_error", err && err.message)
+  );
+  socket.on("disconnect", (reason) =>
+    console.warn("[Socket] Disconnected:", reason)
   );
   return socket;
 };
